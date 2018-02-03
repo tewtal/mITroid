@@ -303,6 +303,7 @@ namespace mITroid.NSPC
 
             int ef_memory = 0;
             int hu_memory = 0;
+            int g_memory = 0;
 
             if (Events.Count == 0)
             {
@@ -516,11 +517,20 @@ namespace mITroid.NSPC
                             {
                                 if (nEvent != null)
                                 {
-
                                     if (eEvent.Parameters[0] != 0)
                                     {
+                                        int val = eEvent.Parameters[0];
+                                        if (val == 0)
+                                        {
+                                            val = g_memory;
+                                        }
+                                        else
+                                        {
+                                            g_memory = val;
+                                        }
+
                                         int semitones = Math.Abs(nEvent.Value - lastnote);
-                                        double speed = eEvent.Parameters[0] * 0.0625;
+                                        double speed = val * 0.0625;
                                         double ticks = (int)((semitones / speed) / 2.0);
                                         int pitch_speed = (int)(ticks * module.InitialSpeed);
                                         if (pitch_speed < 1)
@@ -551,7 +561,7 @@ namespace mITroid.NSPC
                                             var vSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.NotePortamento && x.Processed == false).FirstOrDefault();
                                             if (vSearch != null)
                                             {
-                                                if (vSearch.Parameters[0] == eEvent.Parameters[0] || vSearch.Parameters[0] == 0x00)
+                                                if (vSearch.Parameters[0] == val || vSearch.Parameters[0] == 0x00)
                                                 {
                                                     vSearch.Processed = true;
                                                 }
@@ -574,45 +584,6 @@ namespace mITroid.NSPC
 
                                 break;
                             }
-                        //case Effect.Vibrato:
-                        //    {
-                        //        if (eEvent.Parameters[0] != 0 || eEvent.Parameters[1] != 0)
-                        //        {
-                        //            effectList.Add((byte)Effect.Vibrato);
-                        //            effectList.Add((byte)0x00);
-                        //            effectList.Add((byte)eEvent.Parameters[0]);
-                        //            effectList.Add((byte)eEvent.Parameters[1]);
-                        //        }
-
-                        //        /* Scan for future note vibrato effects and process them */
-                        //        var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
-                        //        int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
-                        //        Event lastSearch = null;
-                        //        for (int search = (row + 1); search < nextNotePos; search++)
-                        //        {
-                        //            var curSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.Vibrato && x.Processed == false).FirstOrDefault();
-                        //            if (curSearch != null)
-                        //            {
-                        //                curSearch.Processed = true;
-                        //                lastSearch = curSearch;
-                        //            }
-                        //            else
-                        //            {
-                        //                break;
-                        //            }
-                        //        }
-
-                        //        /* Set the last effect back as processed and change it to a vibrato off, and push it one row further */
-                        //        if (lastSearch != null)
-                        //        {
-                        //            lastSearch.Processed = false;
-                        //            lastSearch.Type = EventType.Effect;
-                        //            lastSearch.Value = (int)Effect.VibratoOff;
-                        //            lastSearch.Row = lastSearch.Row + 1;
-                        //        }
-
-                        //        break;
-                        //    }
                         case Effect.VibratoOff:
                             {
                                 effectList.Add((byte)Effect.VibratoOff);
@@ -864,6 +835,23 @@ namespace mITroid.NSPC
                             if (startRow > 0)
                                 break;
                         }
+                    }
+
+                    if (startRow > 0)
+                    {
+                        int real_semitones = (int)Math.Round((double)semitones / 16.0, 0);
+                        effectList.Add((byte)Effect.PortamentoUp);
+                        effectList.Add((byte)((startRow - row) * module.CurrentSpeed));
+                        effectList.Add((byte)(module.CurrentSpeed * effectRows));
+                        if (firstEffect == (int)Effect.PortamentoUp)
+                        {
+                            effectList.Add((byte)(sbyte)(real_semitones));
+                        }
+                        else
+                        {
+                            effectList.Add((byte)(sbyte)(-real_semitones));
+                        }
+                        portamento = 1;
                     }
 
                     /* Vibrato special thing test */
