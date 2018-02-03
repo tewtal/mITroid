@@ -176,7 +176,7 @@ namespace mITroid.NSPC
 
 
             /* Reserve space for sequence data and setup pattern*/
-            int patternDataOffset = PatternOffset + (_sequences.Count * 2) + 8 + 32;
+            int patternDataOffset = PatternOffset + (_sequences.Count * 2) + 8 + 34;
             int duplicateRows = 0;
             int chunkEnd = 0;
             curOffset = patternDataOffset;
@@ -280,9 +280,12 @@ namespace mITroid.NSPC
                     bw.Write((byte)InitialSpeed);
                     bw.Write((byte)0x7F);
                     bw.Write((byte)0xC9);
+                    bw.Write((byte)0xF0);
+                    bw.Write((byte)0x01);
                     bw.Write((byte)0x00);
 
-                    foreach(var p in _patterns.Where(x => x.Pointer < (InstrumentOffset - 0x90)))
+
+                    foreach (var p in _patterns.Where(x => x.Pointer < (InstrumentOffset - 0x90)))
                     {
                         foreach(var t in p.Tracks)
                         {

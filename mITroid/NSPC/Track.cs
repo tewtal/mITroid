@@ -93,7 +93,7 @@ namespace mITroid.NSPC
                         int rate = (itRow.Value >> 4);
                         int depth = (itRow.Value & 0x0f);
                         ev.Value = (int)Effect.Vibrato;
-                        ev.Parameters = new List<int>() { rate * 8, depth * 8 };
+                        ev.Parameters = new List<int>() { rate * 4, depth * 16 };
                         break;
                     }
 
@@ -102,7 +102,7 @@ namespace mITroid.NSPC
                         int rate = (itRow.Value >> 4);
                         int depth = (itRow.Value & 0x0f);
                         ev.Value = (int)Effect.Tremolo;
-                        ev.Parameters = new List<int>() { rate * 8, depth * 8 };
+                        ev.Parameters = new List<int>() { rate * 4, depth * 16 };
                         break;
                     }
 
@@ -299,6 +299,10 @@ namespace mITroid.NSPC
             int patternLength = 0;
             int norest = 0;
             int portamento = 0;
+            int vibrato = 0;
+
+            int ef_memory = 0;
+            int hu_memory = 0;
 
             if (Events.Count == 0)
             {
@@ -570,45 +574,45 @@ namespace mITroid.NSPC
 
                                 break;
                             }
-                        case Effect.Vibrato:
-                            {
-                                if (eEvent.Parameters[0] != 0 || eEvent.Parameters[1] != 0)
-                                {
-                                    effectList.Add((byte)Effect.Vibrato);
-                                    effectList.Add((byte)0x00);
-                                    effectList.Add((byte)eEvent.Parameters[0]);
-                                    effectList.Add((byte)eEvent.Parameters[1]);
-                                }
+                        //case Effect.Vibrato:
+                        //    {
+                        //        if (eEvent.Parameters[0] != 0 || eEvent.Parameters[1] != 0)
+                        //        {
+                        //            effectList.Add((byte)Effect.Vibrato);
+                        //            effectList.Add((byte)0x00);
+                        //            effectList.Add((byte)eEvent.Parameters[0]);
+                        //            effectList.Add((byte)eEvent.Parameters[1]);
+                        //        }
 
-                                /* Scan for future note vibrato effects and process them */
-                                var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
-                                int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
-                                Event lastSearch = null;
-                                for (int search = (row + 1); search < nextNotePos; search++)
-                                {
-                                    var curSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.Vibrato && x.Processed == false).FirstOrDefault();
-                                    if (curSearch != null)
-                                    {
-                                        curSearch.Processed = true;
-                                        lastSearch = curSearch;
-                                    }
-                                    else
-                                    {
-                                        break;
-                                    }
-                                }
+                        //        /* Scan for future note vibrato effects and process them */
+                        //        var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
+                        //        int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
+                        //        Event lastSearch = null;
+                        //        for (int search = (row + 1); search < nextNotePos; search++)
+                        //        {
+                        //            var curSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.Vibrato && x.Processed == false).FirstOrDefault();
+                        //            if (curSearch != null)
+                        //            {
+                        //                curSearch.Processed = true;
+                        //                lastSearch = curSearch;
+                        //            }
+                        //            else
+                        //            {
+                        //                break;
+                        //            }
+                        //        }
 
-                                /* Set the last effect back as processed and change it to a vibrato off, and push it one row further */
-                                if (lastSearch != null)
-                                {
-                                    lastSearch.Processed = false;
-                                    lastSearch.Type = EventType.Effect;
-                                    lastSearch.Value = (int)Effect.VibratoOff;
-                                    lastSearch.Row = lastSearch.Row + 1;
-                                }
+                        //        /* Set the last effect back as processed and change it to a vibrato off, and push it one row further */
+                        //        if (lastSearch != null)
+                        //        {
+                        //            lastSearch.Processed = false;
+                        //            lastSearch.Type = EventType.Effect;
+                        //            lastSearch.Value = (int)Effect.VibratoOff;
+                        //            lastSearch.Row = lastSearch.Row + 1;
+                        //        }
 
-                                break;
-                            }
+                        //        break;
+                        //    }
                         case Effect.VibratoOff:
                             {
                                 effectList.Add((byte)Effect.VibratoOff);
@@ -834,6 +838,15 @@ namespace mITroid.NSPC
                         {
                             if (startRow == 0)
                             {
+                                if (vSearch.Value == 0)
+                                {
+                                    vSearch.Value = ef_memory;
+                                }
+                                else
+                                {
+                                    ef_memory = vSearch.Value;
+                                }
+
                                 startRow = search;
                                 firstEffect = vSearch.Value;
                             }
@@ -844,30 +857,71 @@ namespace mITroid.NSPC
                                 effectValue = vSearch.Parameters[0];                            
 
                             semitones += effectValue;
-                        } else
+                            vSearch.Processed = true;
+                        }
+                        else
                         {
                             if (startRow > 0)
                                 break;
                         }
                     }
 
-                    if(startRow > 0)
+                    /* Vibrato special thing test */
+                    nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
+                    nextNotePos = (nextNote != null ? nextNote.Row : Rows);
+                    startRow = 0;
+                    effectRows = 0;
+                    effectValue = 0;
+                    semitones = 0;
+                    firstEffect = 0;
+                    int rate = 0;
+                    int depth = 0;
+                    Event lastEvent = null;
+                    for (int search = (row + 1); search < nextNotePos; search++)
                     {
-                        int real_semitones = (int)Math.Round((double)semitones / 16.0, 0);
-                        effectList.Add((byte)Effect.PortamentoUp);
-                        effectList.Add((byte)((startRow - row) * module.CurrentSpeed));
-                        effectList.Add((byte)(module.CurrentSpeed * effectRows));
-                        if (firstEffect == (int)Effect.PortamentoUp)
+                        var curEvent = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && (x.Value == (int)Effect.Vibrato) && x.Processed == false).FirstOrDefault();
+                        if (curEvent != null)
                         {
-                            effectList.Add((byte)(sbyte)(real_semitones));
+                            if (startRow == 0)
+                            {
+                                if (curEvent.Value == 0)
+                                {
+                                    curEvent.Value = hu_memory;
+                                }
+                                else
+                                {
+                                    hu_memory = curEvent.Value;
+                                }
+
+                                startRow = search;
+                                firstEffect = curEvent.Value;
+                                rate = curEvent.Parameters[0];
+                                depth = curEvent.Parameters[1];
+                            }
+
+                            effectRows++;
+                            curEvent.Processed = true;
+                            lastEvent = curEvent;
                         }
                         else
                         {
-                            effectList.Add((byte)(sbyte)(-real_semitones));
+                            if (startRow > 0)
+                                break;
                         }
-                        portamento = 1;
                     }
 
+                    if (startRow > 0)
+                    {                        
+                        effectList.Add((byte)Effect.Vibrato);
+                        effectList.Add((byte)((startRow - row) * module.CurrentSpeed));
+                        effectList.Add((byte)(rate / module.EngineSpeed));
+                        effectList.Add((byte)depth);
+
+                        lastEvent.Type = EventType.Effect;
+                        lastEvent.Processed = false;
+                        lastEvent.Value = (int)Effect.VibratoOff;
+                        lastEvent.Parameters = null;
+                    }
 
                     /* Apply any effects before the note if we're playing a note */
                     byteList.AddRange(effectList);
