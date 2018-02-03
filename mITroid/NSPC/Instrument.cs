@@ -22,14 +22,14 @@ namespace mITroid.NSPC
                 int aDuration = itInstrument.EnvelopeNodes[1].Ticks - itInstrument.EnvelopeNodes[0].Ticks - 1;
                 int dDuration = itInstrument.EnvelopeNodes[2].Ticks - itInstrument.EnvelopeNodes[1].Ticks - 1;
                 int sDuration = itInstrument.EnvelopeNodes[3].Ticks - itInstrument.EnvelopeNodes[2].Ticks - 1;
-                int sVol = (itInstrument.EnvelopeNodes[2].Volume / 8);
+                int sVol = itInstrument.EnvelopeNodes[2].Volume / 8;
 
                 aDuration = 0xF - (aDuration > 0xF ? 0xF : aDuration);
                 dDuration = 0x7 - ((dDuration > 0xF ? 0xF : dDuration) >> 1);
                 sDuration = 0x1f - ((sDuration<<1) > 0x1F ? 0x1F : (sDuration<<1));
 
                 int ad = 0x80 + (dDuration << 4) + aDuration;
-                int sr = (sVol << 5) + sDuration;
+                int sr = ((sVol < 8 ? sVol: 7) << 5) + sDuration;
 
                 ADSR = (sr << 8) + ad;
                 Gain = 0;

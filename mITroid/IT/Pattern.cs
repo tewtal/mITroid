@@ -16,6 +16,16 @@ namespace mITroid.IT
         public int Value { get; set; }
         public int Instrument { get; set; }
         public int RowNum { get; set; }
+        public Row()
+        {
+            Note = -1;
+            Volume = -1;
+            Command = -1;
+            Value = -1;
+            Instrument = -1;
+            RowNum = 0;
+        }
+
     }
 
     class Channel
@@ -30,12 +40,12 @@ namespace mITroid.IT
         public Channel()
         {
             Rows = new List<Row>();
-            LastCommand = 0;
-            LastMaskVariable = 0;
-            LastNote = 0;
-            LastValue = 0;
-            LastVolume = 0;
-            LastInstrument = 0;
+            LastCommand = -1;
+            LastMaskVariable = -1;
+            LastNote = -1;
+            LastValue = -1;
+            LastVolume = -1;
+            LastInstrument = -1;
         }
     }
 
@@ -103,8 +113,14 @@ namespace mITroid.IT
 
                     if ((maskVariable & 4) != 0)
                     {
-                        row.Volume = file.ReadByte();
-                        _channels[curChan].LastVolume = row.Volume;
+                        int volume = file.ReadByte();
+
+                        if (volume <= 64)
+                        {
+                            row.Volume = volume;
+                        }
+
+                        _channels[curChan].LastVolume = volume;
                     }
 
                     if ((maskVariable & 8) != 0)
@@ -126,7 +142,10 @@ namespace mITroid.IT
                     }
                     if ((maskVariable & 64) != 0)
                     {
-                        row.Volume = _channels[curChan].LastVolume;
+                        if (_channels[curChan].LastVolume <= 64)
+                        {
+                            row.Volume = _channels[curChan].LastVolume;
+                        }
                     }
                     if ((maskVariable & 128) != 0)
                     {

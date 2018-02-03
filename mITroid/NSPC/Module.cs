@@ -14,6 +14,12 @@ namespace mITroid.NSPC
         public byte[] Data { get; set; }
     }
 
+    enum Game
+    {
+        SM,
+        ALTTP
+    }
+
     class Module
     {
         private List<Pattern> _patterns;
@@ -44,19 +50,36 @@ namespace mITroid.NSPC
         public decimal ResampleFactor { get; set; }
         public bool EnhanceTreble { get; set; }
 
-        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor)
+        public Game Game { get; set; }
+
+        public int EngineSpeed { get; set; }
+
+        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed)
         {
+            EngineSpeed = engineSpeed;
             Name = itModule.Name;
             GlobalVolume = (itModule.GlobalVolume * 2) - 1;
-            InitialTempo = (int)Math.Round(itModule.InitialTempo / 4.8);
-            InitialSpeed = itModule.InitialSpeed;
+            InitialTempo = (int)Math.Round(itModule.InitialTempo / (4.8 / EngineSpeed), 0);
+            InitialSpeed = itModule.InitialSpeed * EngineSpeed;
             LoopSequence = itModule.LoopSequence;
 
+            Game = Game.SM;
+
             /* Set SM standard values */
-            SampleHeaderOffset = 0x6d60;
-            InstrumentOffset = 0x6c90;
-            PatternOffset = 0x5828;
-            SampleOffset = 0xb210;
+            if (Game == Game.SM)
+            {
+                SampleHeaderOffset = 0x6d60;
+                InstrumentOffset = 0x6c90;
+                PatternOffset = 0x5828;
+                SampleOffset = 0xb210;
+            }
+            else if (Game == Game.ALTTP)
+            {
+                SampleHeaderOffset = 0x3c00;
+                InstrumentOffset = 0x3d00;
+                SampleOffset = 0x4000;
+                PatternOffset = 0xD000;                
+            }
 
             _samples = new List<Sample>();
             foreach (var itSample in itModule.Samples)
@@ -283,7 +306,21 @@ namespace mITroid.NSPC
             {
                 var extraPatternChunk = new Chunk();
                 extraPatternChunk.Offset = (sampleChunk.Offset + sampleChunk.Length);
-                extraPatternChunk.Length = (_patterns.Where(x => x.Pointer >= extraPatternChunk.Offset).Max(x => x.Tracks.Max(y => y.Pointer + y.Data.Length)) - extraPatternChunk.Offset) + 1;
+
+                int extraLength = 0;
+                var lastPattern = _patterns.OrderByDescending(x => x.Pointer).First();
+                var lastTrack = lastPattern.Tracks.OrderByDescending(x => x.Pointer).First();
+
+                if (lastTrack.Pointer > lastPattern.Pointer)
+                {
+                    extraLength = (lastTrack.Pointer + lastTrack.Data.Length) - extraPatternChunk.Offset;
+                }
+                else
+                {
+                    extraLength = (lastPattern.Pointer + 16) - extraPatternChunk.Offset;
+                }
+
+                extraPatternChunk.Length = extraLength; //(_patterns.Where(x => x.Pointer >= extraPatternChunk.Offset).Max(x => x.Tracks.Max(y => y.Pointer + y.Data.Length)) - extraPatternChunk.Offset) + 1;
                 extraPatternChunk.Data = new byte[extraPatternChunk.Length];
                 using (MemoryStream ms = new MemoryStream(extraPatternChunk.Data))
                 {

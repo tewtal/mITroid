@@ -26,7 +26,9 @@ namespace mITroid.NSPC
         VolumeSlide2 = 'K',
         NotePortamento = 'G',
         Special = 'S',
-        Zpecial = 'Z'
+        Zpecial = 'Z',
+        PortamentoUp = 'F',
+        PortamentoDown = 'E'
     }
 
     enum Effect
@@ -40,6 +42,9 @@ namespace mITroid.NSPC
         Speed = 0xFF,
         Tempo = 0xE7,
         Pan = 0xE2,
+        PortamentoUp = 0xF1,
+        PortamentoDown = 0xF2,
+        PortamentoOff = 0xF3,
         NotePortamento = 0xF9,
         Instrument = 0xE0,
         Special = 0xFE,
@@ -53,6 +58,19 @@ namespace mITroid.NSPC
         public List<int> Parameters { get; set; }
         public int Row { get; set; }
         public bool Processed { get; set; }
+
+        public static readonly byte[] VolumeLUT = new byte[]
+                                                  { 0, 10, 13, 16, 19, 20, 22, 24,
+                                                   26, 28, 30, 31, 32, 33, 34, 35,
+                                                   37, 38, 39, 40, 41, 42, 43, 44,
+                                                   45, 46, 47, 48, 49, 50, 50, 51,
+                                                   51, 52, 52, 53, 53, 54, 54, 55,
+                                                   55, 56, 56, 57, 57, 58, 58, 59,
+                                                   59, 60, 60, 61, 61, 61, 62, 62,
+                                                   62, 63, 63, 63, 64, 64, 64, 64};
+                                                
+
+
 
         public Event()
         {
@@ -105,7 +123,7 @@ namespace mITroid.NSPC
                 case ITEffect.Tempo:
                     {
                         ev.Value = (int)Effect.Tempo;
-                        ev.Parameters = new List<int>() { (int)Math.Round(itRow.Value / 4.8, 0) };
+                        ev.Parameters = new List<int>() { itRow.Value };
                         break;
                     }
 
@@ -128,12 +146,24 @@ namespace mITroid.NSPC
                         ev.Parameters = new List<int>() { 1, itRow.Value };
                         break;
                     }
+                case ITEffect.PortamentoDown:
+                    {
+                        ev.Value = (int)Effect.PortamentoDown;
+                        ev.Parameters = new List<int>() { itRow.Value };
+                        break;
+                    }
+                case ITEffect.PortamentoUp:
+                    {
+                        ev.Value = (int)Effect.PortamentoUp;
+                        ev.Parameters = new List<int>() { itRow.Value };
+                        break;
+                    }
                 case ITEffect.NotePortamento:
                     {
                         ev.Value = (int)Effect.NotePortamento;
                         ev.Parameters = new List<int>() { itRow.Value };
                         break;
-                    }
+                    }                
                 case ITEffect.Special:
                     {
                         int sub_cmd = (itRow.Value >> 4);
@@ -155,22 +185,27 @@ namespace mITroid.NSPC
 
         public static int ConvertVolume(int val)
         {
-            double vp = val;
+            //double vp = val;
 
-            if (vp < 10)
-                vp = vp * 1.7;
-            else if (vp < 15)
-                vp = vp * 1.6;
-            else if (vp < 20)
-                vp = vp * 1.5;
-            else if (vp < 30)
-                vp = vp * 1.4;
-            else if (vp < 40)
-                vp = vp * 1.3;
-            else if (vp < 50)
-                vp = vp * 1.2;
+            //if (vp > 0 && vp < 10)
+            //    vp = 10;
 
 
+            //if (vp < 10)
+            //    vp = vp * 2;
+            //else if (vp < 20)
+            //    vp = vp * 1.8;
+            //else if (vp < 30)
+            //    vp = vp * 1.5;
+            //else if (vp < 40)
+            //    vp = vp * 1.3;
+            //else if (vp < 50)
+            //    vp = vp * 1.1;
+            //else
+            //    vp = vp * 1.0;
+
+
+            int vp = (val == 0) ? 0 : VolumeLUT[val - 1];
             int volume = (int)((vp > 0) ? (vp * 4) - 1 : 0);
             return volume;
         }
@@ -188,7 +223,7 @@ namespace mITroid.NSPC
             Events = new List<Event>();
             foreach(var row in itRows)
             {
-                if(row.Note != 0)
+                if(row.Note != -1)
                 {
                     var noteEvent = new Event
                     {
@@ -221,7 +256,7 @@ namespace mITroid.NSPC
                     Events.Add(noteEvent);
                 }
 
-                if(row.Instrument != 0)
+                if(row.Instrument != -1)
                 {
                     var instrumentEvent = new Event
                     {
@@ -232,7 +267,7 @@ namespace mITroid.NSPC
                     Events.Add(instrumentEvent);
                 }
 
-                if(row.Volume != 0)
+                if(row.Volume != -1)
                 {
                     var volumeEvent = new Event
                     {
@@ -243,7 +278,7 @@ namespace mITroid.NSPC
                     Events.Add(volumeEvent);
                 }
 
-                if(row.Command != 0)
+                if(row.Command != -1)
                 {                    
                     Events.Add(Event.CreateEffect(row));
                 }
@@ -263,6 +298,7 @@ namespace mITroid.NSPC
             int lastnote = 0;
             int patternLength = 0;
             int norest = 0;
+            int portamento = 0;
 
             if (Events.Count == 0)
             {
@@ -383,6 +419,9 @@ namespace mITroid.NSPC
                                 targetVolume = vSearch.Value;
                                 searchLength = 8;
                                 vSearch.Processed = true;
+
+                                if ((((targetRow+1) - row) * module.CurrentSpeed) > 0xFF)
+                                    break;
                             }
                             else
                             {
@@ -435,14 +474,14 @@ namespace mITroid.NSPC
                         case Effect.Tempo:
                             {
                                 byteList.Add((byte)Effect.Tempo);
-                                byteList.Add((byte)eEvent.Parameters[0]);
+                                byteList.Add((byte)Math.Round(eEvent.Parameters[0] / (4.8 / module.EngineSpeed), 0));
                                 module.CurrentTempo = eEvent.Parameters[0];
                                 break;
                             }
 
                         case Effect.Speed:
                             {
-                                int newSpeed = eEvent.Parameters[0];
+                                int newSpeed = eEvent.Parameters[0] * module.EngineSpeed;
                                 double factor = ((double)newSpeed / (double)module.CurrentSpeed);
                                 int newTempo = (int)Math.Round(((double)module.CurrentTempo / factor));
                                 byteList.Add((byte)Effect.Tempo);
@@ -476,10 +515,12 @@ namespace mITroid.NSPC
 
                                     if (eEvent.Parameters[0] != 0)
                                     {
-
-                                        int pitch_speed = 0x20 - ((eEvent.Parameters[0] * 4) < 0x19 ? (eEvent.Parameters[0] * 4) : 0x19);
-
-                                        //int pitch_speed = ((0xFF/16) - (eEvent.Parameters[0]/16) + 1);
+                                        int semitones = Math.Abs(nEvent.Value - lastnote);
+                                        double speed = eEvent.Parameters[0] * 0.0625;
+                                        double ticks = (int)((semitones / speed) / 2.0);
+                                        int pitch_speed = (int)(ticks * module.InitialSpeed);
+                                        if (pitch_speed < 1)
+                                            pitch_speed = 1;
 
                                         effectList.Add((byte)Effect.NotePortamento);
                                         effectList.Add((byte)0x00);
@@ -628,7 +669,7 @@ namespace mITroid.NSPC
                                 var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
                                 int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
                                 for (int search = (row + 1); search < nextNotePos; search++)
-                                {
+                                {                                   
                                     var lastSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.VolumeSlide && x.Processed == false).FirstOrDefault();
                                     if (lastSearch != null)
                                     {
@@ -640,6 +681,10 @@ namespace mITroid.NSPC
                                     {
                                         break;
                                     }
+
+                                    if ((targetVolumeChangeRows * module.CurrentSpeed) > 0xFF)
+                                        break;
+
                                 }
 
                                 int finalVolume = (volume + targetVolumeChange);
@@ -774,6 +819,56 @@ namespace mITroid.NSPC
 
                 if (nEvent != null)
                 {
+                    /* Special case here for the portamento up/down effects that only works on the _next_ note played */
+                    var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
+                    int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
+                    int startRow = 0;
+                    int effectRows = 0;
+                    int effectValue = 0;
+                    int semitones = 0;
+                    int firstEffect = 0;
+                    for (int search = (row + 1); search < nextNotePos; search++)
+                    {
+                        var vSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && (x.Value == (int)Effect.PortamentoDown || x.Value == (int)Effect.PortamentoUp) && x.Processed == false).FirstOrDefault();
+                        if(vSearch != null)
+                        {
+                            if (startRow == 0)
+                            {
+                                startRow = search;
+                                firstEffect = vSearch.Value;
+                            }
+
+                            effectRows++;
+
+                            if (vSearch.Parameters[0] != 0)
+                                effectValue = vSearch.Parameters[0];                            
+
+                            semitones += effectValue;
+                        } else
+                        {
+                            if (startRow > 0)
+                                break;
+                        }
+                    }
+
+                    if(startRow > 0)
+                    {
+                        int real_semitones = (int)Math.Round((double)semitones / 16.0, 0);
+                        effectList.Add((byte)Effect.PortamentoUp);
+                        effectList.Add((byte)((startRow - row) * module.CurrentSpeed));
+                        effectList.Add((byte)(module.CurrentSpeed * effectRows));
+                        if (firstEffect == (int)Effect.PortamentoUp)
+                        {
+                            effectList.Add((byte)(sbyte)(real_semitones));
+                        }
+                        else
+                        {
+                            effectList.Add((byte)(sbyte)(-real_semitones));
+                        }
+                        portamento = 1;
+                    }
+
+
                     /* Apply any effects before the note if we're playing a note */
                     byteList.AddRange(effectList);
 
@@ -838,6 +933,12 @@ namespace mITroid.NSPC
                         byteList.Add((byte)nEvent.Value);
                         lastnote = nEvent.Value;
                         nEvent.Processed = true;
+
+                        if(portamento == 1)
+                        {
+                            byteList.Add((byte)Effect.PortamentoOff);
+                            portamento = 0;
+                        }
                     }
                 }
                 else

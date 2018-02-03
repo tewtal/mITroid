@@ -43,10 +43,23 @@ namespace mITroid
                 {
 
                 }
-                
-                _module = new NSPC.Module(it, chkTreble.Checked, resampleFactor);
-                _chunks = _module.GenerateData();
 
+                int engineSpeed = 1;
+                if (radio2x.Checked)
+                {
+                    engineSpeed = 2;
+                }
+                else if (radio3x.Checked)
+                {
+                    engineSpeed = 3;
+                }
+                else if (radio4x.Checked)
+                {
+                    engineSpeed = 4;
+                }
+
+                _module = new NSPC.Module(it, chkTreble.Checked, resampleFactor, engineSpeed);
+                _chunks = _module.GenerateData();
 
                 lblInstruments.Text = _module.Instruments.Count.ToString() + " instruments - " + _chunks[2].Length + " bytes (" + ((int)((_chunks[2].Length / (double)0x70) * 100)).ToString() + "%)";
                 lblSamplesHeaders.Text = _module.Samples.Count.ToString() + " headers - " + _chunks[1].Length + " bytes (" + ((int)((_chunks[1].Length / (double)0xA0) * 100)).ToString() + "%)";
