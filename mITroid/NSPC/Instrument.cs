@@ -12,10 +12,41 @@ namespace mITroid.NSPC
         public int ADSR { get; set; }
         public int Gain { get; set; }
         public int PitchAdjustment { get; set; }
+        public int InternalInstrument { get; set; }
 
         public Instrument(IT.Instrument itInstrument, NSPC.Sample nSample)
         {
-            SampleIndex = itInstrument.SampleIndex + 0x17;
+            if (itInstrument.Name.StartsWith("&"))
+            {
+                try
+                {
+                    InternalInstrument = Convert.ToInt32(itInstrument.Name.Substring(1), 16);
+                }
+                catch
+                {
+                    InternalInstrument = -1;
+                }
+            }
+            else
+            {
+                InternalInstrument = -1;
+            }
+
+            if (itInstrument.Name.StartsWith("$"))
+            {
+                try
+                {
+                    SampleIndex = Convert.ToInt32(itInstrument.Name.Substring(1), 16);
+                } 
+                catch
+                {
+                    SampleIndex = itInstrument.SampleIndex + 0x17;
+                }
+            }
+            else
+            {
+                SampleIndex = itInstrument.SampleIndex + 0x17;
+            }
 
             if (itInstrument.UseEnvelope && itInstrument.EnvelopeNodes.Count > 3)
             {
@@ -32,13 +63,12 @@ namespace mITroid.NSPC
                 int sr = ((sVol < 8 ? sVol: 7) << 5) + sDuration;
 
                 ADSR = (sr << 8) + ad;
-                Gain = 0;
+                Gain = (Event.ConvertVolume(itInstrument.GlobalVolume / 2) / 2) - 1;
             }
             else
             {
                 ADSR = 0;
-                Gain = itInstrument.GlobalVolume - 1;
-
+                Gain = (Event.ConvertVolume(itInstrument.GlobalVolume / 2) / 2) - 1;
             }
 
 
