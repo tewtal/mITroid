@@ -699,9 +699,9 @@ namespace mITroid.NSPC
                                 {
                                     case 0x0D: /* note delay by sub_val ticks */
                                         {
-                                            effectList.Add((byte)sub_val);
-                                            effectList.Add((byte)0xC8);
-                                            notedelay = sub_val;
+                                            notedelay = (sub_val * module.EngineSpeed);
+                                            effectList.Add((byte)notedelay);
+                                            effectList.Add((byte)0xC8);                                           
                                             break;
                                         }
                                     case 0x00: /* Special commands */
@@ -969,14 +969,12 @@ namespace mITroid.NSPC
                             novolumechange = 0;
                         }
 
-                        if (newLength != noteLength)
+                        if (newLength != noteLength || notedelay > 0)
                         {
                             noteLength = newLength;
                             if (notedelay > 0)
                             {
                                 noteLength -= notedelay;
-                                notedelay = 0;
-                                   
                             }
                             byteList.Add((byte)noteLength);
                         }
@@ -995,14 +993,12 @@ namespace mITroid.NSPC
                 }
                 else
                 {
-                    if (newLength != noteLength)
+                    if (newLength != noteLength || notedelay > 0)
                     {
                         noteLength = newLength;
                         if (notedelay > 0)
                         {
                             noteLength -= notedelay;
-                            notedelay = 0;
-
                         }
                         noteLength = newLength;
                         byteList.Add((byte)noteLength);
@@ -1014,7 +1010,8 @@ namespace mITroid.NSPC
                     byteList.AddRange(effectList);
                 }
 
-                row += (noteLength / module.CurrentSpeed) - 1;
+                row += ((noteLength + notedelay) / module.CurrentSpeed) - 1;
+                notedelay = 0;
             }
 
             byteList.Add(0);

@@ -14,6 +14,56 @@ namespace mITroid.NSPC
         public byte[] Data { get; set; }
     }
 
+    class Patch
+    {
+        public int Offset { get; set; }
+        public byte[] Data { get; set; }
+        public byte[] OrigData { get; set; }
+
+        public byte[] GetUnpatchCode()
+        {
+            List<byte> patchCode = new List<byte>();
+            int a = Offset;
+            foreach(var b in OrigData)
+            {
+                patchCode.Add(0xE8);
+                patchCode.Add(b);
+                patchCode.Add(0xC5);
+                patchCode.Add((byte)(a & 0xFF));
+                patchCode.Add((byte)((a >> 8) & 0xFF));
+                a++;
+            }
+            return patchCode.ToArray();
+        }
+
+        public static List<Chunk> GetPatchChunks(List<Patch> patches)
+        {
+            var chunks = new List<Chunk>();
+            var patchCode = new List<byte>();
+
+            patchCode.Add(0x2D);
+
+            foreach (var p in patches)
+            {
+                chunks.Add(new Chunk() { Data = p.Data, Length = p.Data.Length, Offset = p.Offset });
+                patchCode.AddRange(p.GetUnpatchCode());
+            }
+
+            patchCode.Add(0xAE);
+            patchCode.Add(0xE8);
+            patchCode.Add(0xAA);
+            patchCode.Add(0xC5);
+            patchCode.Add(0xF4);
+            patchCode.Add(0x00);
+            patchCode.Add(0x6F);
+
+            chunks.Add(new Chunk() { Data = new byte[] { 0x3F, 0xF0, 0x56 }, Length = 3, Offset = 0x1E8B });
+            chunks.Add(new Chunk() { Data = patchCode.ToArray(), Length = patchCode.Count(), Offset = 0x56F0 });
+
+            return chunks;
+        }
+    }
+
     enum Game
     {
         SM,

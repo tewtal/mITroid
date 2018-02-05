@@ -1,4 +1,5 @@
-﻿using System;
+﻿using mITroid.NSPC;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -58,8 +59,29 @@ namespace mITroid
                     engineSpeed = 4;
                 }
 
-                _module = new NSPC.Module(it, chkTreble.Checked, resampleFactor, engineSpeed);
+                _module = new Module(it, chkTreble.Checked, resampleFactor, engineSpeed);
                 _chunks = _module.GenerateData();
+
+
+                var patches = new List<Patch>();
+
+                if (chkPatchNoteOff.Checked)
+                {
+                    patches.Add(new Patch() { Offset = 0x1CAF, Data = new byte[] { 0xC9, 0x90 }, OrigData = new byte[] { 0xC8, 0xF0 } });
+                    patches.Add(new Patch() { Offset = 0x164E, Data = new byte[] { 0x3f, 0xf0, 0x57 }, OrigData = new byte[] { 0xd5, 0x61, 0x03 } });
+                    _chunks.Add(new Chunk() { Data = new byte[] { 0x2d, 0xe4, 0x47, 0x8d, 0x5c, 0x3f, 0x26, 0x17, 0xae, 0xd5, 0x61, 0x03, 0x6f }, Offset = 0x57f0, Length = 13 });
+                }
+
+                if (chkPatchPatternOff.Checked)
+                {
+                    patches.Add(new Patch() { Offset = 0x1CC5, Data = new byte[] { 0xF0, 0x30 }, OrigData = new byte[] { 0xF0, 0x23 } });
+                }
+
+                if (patches.Count > 0)
+                {
+                    _chunks.AddRange(Patch.GetPatchChunks(patches));
+                }
+
 
                 lblInstruments.Text = _module.Instruments.Count.ToString() + " instruments - " + _chunks[2].Length + " bytes (" + ((int)((_chunks[2].Length / (double)0x70) * 100)).ToString() + "%)";
                 lblSamplesHeaders.Text = _module.Samples.Count.ToString() + " headers - " + _chunks[1].Length + " bytes (" + ((int)((_chunks[1].Length / (double)0xA0) * 100)).ToString() + "%)";

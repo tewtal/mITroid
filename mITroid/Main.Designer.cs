@@ -30,6 +30,15 @@
         {
             this.button1 = new System.Windows.Forms.Button();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.chkPatchPatternOff = new System.Windows.Forms.CheckBox();
+            this.chkPatchNoteOff = new System.Windows.Forms.CheckBox();
+            this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.radio3x = new System.Windows.Forms.RadioButton();
+            this.radio4x = new System.Windows.Forms.RadioButton();
+            this.label8 = new System.Windows.Forms.Label();
+            this.radio2x = new System.Windows.Forms.RadioButton();
+            this.radio1x = new System.Windows.Forms.RadioButton();
             this.Game = new System.Windows.Forms.GroupBox();
             this.radioALTTP = new System.Windows.Forms.RadioButton();
             this.radioSM = new System.Windows.Forms.RadioButton();
@@ -50,21 +59,16 @@
             this.label2 = new System.Windows.Forms.Label();
             this.button2 = new System.Windows.Forms.Button();
             this.button3 = new System.Windows.Forms.Button();
-            this.groupBox3 = new System.Windows.Forms.GroupBox();
-            this.radio2x = new System.Windows.Forms.RadioButton();
-            this.radio1x = new System.Windows.Forms.RadioButton();
-            this.label8 = new System.Windows.Forms.Label();
-            this.radio4x = new System.Windows.Forms.RadioButton();
-            this.radio3x = new System.Windows.Forms.RadioButton();
             this.groupBox1.SuspendLayout();
+            this.groupBox4.SuspendLayout();
+            this.groupBox3.SuspendLayout();
             this.Game.SuspendLayout();
             this.groupBox2.SuspendLayout();
-            this.groupBox3.SuspendLayout();
             this.SuspendLayout();
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(207, 173);
+            this.button1.Location = new System.Drawing.Point(206, 271);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(153, 32);
             this.button1.TabIndex = 0;
@@ -74,6 +78,7 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.groupBox4);
             this.groupBox1.Controls.Add(this.groupBox3);
             this.groupBox1.Controls.Add(this.Game);
             this.groupBox1.Controls.Add(this.label1);
@@ -81,10 +86,106 @@
             this.groupBox1.Controls.Add(this.chkTreble);
             this.groupBox1.Location = new System.Drawing.Point(12, 12);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(551, 155);
+            this.groupBox1.Size = new System.Drawing.Size(551, 241);
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Options";
+            // 
+            // groupBox4
+            // 
+            this.groupBox4.Controls.Add(this.chkPatchPatternOff);
+            this.groupBox4.Controls.Add(this.chkPatchNoteOff);
+            this.groupBox4.Location = new System.Drawing.Point(7, 155);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Size = new System.Drawing.Size(538, 74);
+            this.groupBox4.TabIndex = 7;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "N-SPC Patches (experimental)";
+            // 
+            // chkPatchPatternOff
+            // 
+            this.chkPatchPatternOff.AutoSize = true;
+            this.chkPatchPatternOff.Location = new System.Drawing.Point(6, 42);
+            this.chkPatchPatternOff.Name = "chkPatchPatternOff";
+            this.chkPatchPatternOff.Size = new System.Drawing.Size(181, 17);
+            this.chkPatchPatternOff.TabIndex = 1;
+            this.chkPatchPatternOff.Text = "Disable key-off between patterns";
+            this.chkPatchPatternOff.UseVisualStyleBackColor = true;
+            // 
+            // chkPatchNoteOff
+            // 
+            this.chkPatchNoteOff.AutoSize = true;
+            this.chkPatchNoteOff.Location = new System.Drawing.Point(6, 19);
+            this.chkPatchNoteOff.Name = "chkPatchNoteOff";
+            this.chkPatchNoteOff.Size = new System.Drawing.Size(381, 17);
+            this.chkPatchNoteOff.TabIndex = 0;
+            this.chkPatchNoteOff.Text = "Disable key-off between notes (can cause popping between note changes)";
+            this.chkPatchNoteOff.UseVisualStyleBackColor = true;
+            // 
+            // groupBox3
+            // 
+            this.groupBox3.Controls.Add(this.radio3x);
+            this.groupBox3.Controls.Add(this.radio4x);
+            this.groupBox3.Controls.Add(this.label8);
+            this.groupBox3.Controls.Add(this.radio2x);
+            this.groupBox3.Controls.Add(this.radio1x);
+            this.groupBox3.Location = new System.Drawing.Point(7, 69);
+            this.groupBox3.Name = "groupBox3";
+            this.groupBox3.Size = new System.Drawing.Size(415, 80);
+            this.groupBox3.TabIndex = 6;
+            this.groupBox3.TabStop = false;
+            this.groupBox3.Text = "N-SPC Engine Speed";
+            // 
+            // radio3x
+            // 
+            this.radio3x.AutoSize = true;
+            this.radio3x.Location = new System.Drawing.Point(90, 19);
+            this.radio3x.Name = "radio3x";
+            this.radio3x.Size = new System.Drawing.Size(36, 17);
+            this.radio3x.TabIndex = 8;
+            this.radio3x.Text = "3x";
+            this.radio3x.UseVisualStyleBackColor = true;
+            // 
+            // radio4x
+            // 
+            this.radio4x.AutoSize = true;
+            this.radio4x.Location = new System.Drawing.Point(132, 19);
+            this.radio4x.Name = "radio4x";
+            this.radio4x.Size = new System.Drawing.Size(36, 17);
+            this.radio4x.TabIndex = 7;
+            this.radio4x.Text = "4x";
+            this.radio4x.UseVisualStyleBackColor = true;
+            // 
+            // label8
+            // 
+            this.label8.Location = new System.Drawing.Point(6, 42);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(403, 35);
+            this.label8.TabIndex = 6;
+            this.label8.Text = "Higher speeds will decrease gap between notes and can make fast note changes soun" +
+    "d better, but it uses more data and can overload the SPC.";
+            // 
+            // radio2x
+            // 
+            this.radio2x.AutoSize = true;
+            this.radio2x.Location = new System.Drawing.Point(48, 19);
+            this.radio2x.Name = "radio2x";
+            this.radio2x.Size = new System.Drawing.Size(36, 17);
+            this.radio2x.TabIndex = 5;
+            this.radio2x.Text = "2x";
+            this.radio2x.UseVisualStyleBackColor = true;
+            // 
+            // radio1x
+            // 
+            this.radio1x.AutoSize = true;
+            this.radio1x.Checked = true;
+            this.radio1x.Location = new System.Drawing.Point(6, 19);
+            this.radio1x.Name = "radio1x";
+            this.radio1x.Size = new System.Drawing.Size(36, 17);
+            this.radio1x.TabIndex = 0;
+            this.radio1x.TabStop = true;
+            this.radio1x.Text = "1x";
+            this.radio1x.UseVisualStyleBackColor = true;
             // 
             // Game
             // 
@@ -162,7 +263,7 @@
             this.groupBox2.Controls.Add(this.label4);
             this.groupBox2.Controls.Add(this.label3);
             this.groupBox2.Controls.Add(this.label2);
-            this.groupBox2.Location = new System.Drawing.Point(12, 211);
+            this.groupBox2.Location = new System.Drawing.Point(12, 309);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(551, 146);
             this.groupBox2.TabIndex = 2;
@@ -267,7 +368,7 @@
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(12, 384);
+            this.button2.Location = new System.Drawing.Point(10, 478);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(98, 36);
             this.button2.TabIndex = 3;
@@ -277,7 +378,7 @@
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(450, 384);
+            this.button3.Location = new System.Drawing.Point(448, 478);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(113, 36);
             this.button3.TabIndex = 4;
@@ -285,91 +386,28 @@
             this.button3.UseVisualStyleBackColor = true;
             this.button3.Click += new System.EventHandler(this.button3_Click);
             // 
-            // groupBox3
-            // 
-            this.groupBox3.Controls.Add(this.radio3x);
-            this.groupBox3.Controls.Add(this.radio4x);
-            this.groupBox3.Controls.Add(this.label8);
-            this.groupBox3.Controls.Add(this.radio2x);
-            this.groupBox3.Controls.Add(this.radio1x);
-            this.groupBox3.Location = new System.Drawing.Point(7, 69);
-            this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(415, 80);
-            this.groupBox3.TabIndex = 6;
-            this.groupBox3.TabStop = false;
-            this.groupBox3.Text = "N-SPC Engine Speed";
-            // 
-            // radio2x
-            // 
-            this.radio2x.AutoSize = true;
-            this.radio2x.Location = new System.Drawing.Point(48, 19);
-            this.radio2x.Name = "radio2x";
-            this.radio2x.Size = new System.Drawing.Size(36, 17);
-            this.radio2x.TabIndex = 5;
-            this.radio2x.Text = "2x";
-            this.radio2x.UseVisualStyleBackColor = true;
-            // 
-            // radio1x
-            // 
-            this.radio1x.AutoSize = true;
-            this.radio1x.Checked = true;
-            this.radio1x.Location = new System.Drawing.Point(6, 19);
-            this.radio1x.Name = "radio1x";
-            this.radio1x.Size = new System.Drawing.Size(36, 17);
-            this.radio1x.TabIndex = 0;
-            this.radio1x.TabStop = true;
-            this.radio1x.Text = "1x";
-            this.radio1x.UseVisualStyleBackColor = true;
-            // 
-            // label8
-            // 
-            this.label8.Location = new System.Drawing.Point(6, 42);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(403, 35);
-            this.label8.TabIndex = 6;
-            this.label8.Text = "Higher speeds will decrease gap between notes and can make fast note changes soun" +
-    "d better, but it uses more data and can overload the SPC.";
-            // 
-            // radio4x
-            // 
-            this.radio4x.AutoSize = true;
-            this.radio4x.Location = new System.Drawing.Point(132, 19);
-            this.radio4x.Name = "radio4x";
-            this.radio4x.Size = new System.Drawing.Size(36, 17);
-            this.radio4x.TabIndex = 7;
-            this.radio4x.Text = "4x";
-            this.radio4x.UseVisualStyleBackColor = true;
-            // 
-            // radio3x
-            // 
-            this.radio3x.AutoSize = true;
-            this.radio3x.Location = new System.Drawing.Point(90, 19);
-            this.radio3x.Name = "radio3x";
-            this.radio3x.Size = new System.Drawing.Size(36, 17);
-            this.radio3x.TabIndex = 8;
-            this.radio3x.Text = "3x";
-            this.radio3x.UseVisualStyleBackColor = true;
-            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(575, 429);
+            this.ClientSize = new System.Drawing.Size(575, 520);
             this.Controls.Add(this.button3);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.button1);
             this.Name = "Main";
-            this.Text = "mITroid Music Converter v0.95";
+            this.Text = "mITroid Music Converter v0.97";
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.groupBox4.ResumeLayout(false);
+            this.groupBox4.PerformLayout();
+            this.groupBox3.ResumeLayout(false);
+            this.groupBox3.PerformLayout();
             this.Game.ResumeLayout(false);
             this.Game.PerformLayout();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
-            this.groupBox3.ResumeLayout(false);
-            this.groupBox3.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -404,6 +442,9 @@
         private System.Windows.Forms.RadioButton radio2x;
         private System.Windows.Forms.RadioButton radio1x;
         private System.Windows.Forms.RadioButton radio3x;
+        private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.CheckBox chkPatchPatternOff;
+        private System.Windows.Forms.CheckBox chkPatchNoteOff;
     }
 }
 
