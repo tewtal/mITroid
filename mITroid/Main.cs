@@ -59,7 +59,17 @@ namespace mITroid
                     engineSpeed = 4;
                 }
 
-                _module = new Module(it, chkTreble.Checked, resampleFactor, engineSpeed);
+                bool newAdsr;
+                if(radioNewADSR.Checked)
+                {
+                    newAdsr = true;
+                }
+                else
+                {
+                    newAdsr = false;
+                }
+
+                _module = new Module(it, chkTreble.Checked, resampleFactor, engineSpeed, newAdsr);
                 _chunks = _module.GenerateData();
 
 

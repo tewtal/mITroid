@@ -211,15 +211,28 @@ namespace mITroid.NSPC
         }
     }
 
+    class EffectMemory
+    {
+        public int Portamento { get; set; }
+        public int VibratoRate { get; set; }
+        public int VibratoDepth { get; set; }
+        public int NotePortamento { get; set; }
+    }
+
+
     class Track
     {
+        private static EffectMemory[] Memory;
+
         public int Rows { get; set; }
         public int Pointer { get; set; }
         public List<Event> Events { get; set; }
         public byte[] Data { get; set; }
+        public int Channel { get; set; }
 
-        public Track(List<IT.Row> itRows)
+        public Track(List<IT.Row> itRows, int channel)
         {
+            Channel = channel;
             Events = new List<Event>();
             foreach(var row in itRows)
             {
@@ -301,9 +314,15 @@ namespace mITroid.NSPC
             int portamento = 0;
             int vibrato = 0;
 
-            int ef_memory = 0;
-            int hu_memory = 0;
-            int g_memory = 0;
+            if (Memory == null)
+            {
+                Memory = new EffectMemory[8];
+                for(int i = 0; i < 8; i++)
+                {
+                    Memory[i] = new EffectMemory();
+                }
+            }
+
 
             if (Events.Count == 0)
             {
@@ -392,7 +411,7 @@ namespace mITroid.NSPC
                         /* First we find the next note */
                         var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
                         int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
-                        int searchLength = 8; /* Search at most 5 rows ahead before bailing out */
+                        int searchLength = 8; /* Search at most 8 rows ahead before bailing out */
                         int targetRow = 0;
                         int targetVolume = vEvent.Value;
                         int slideDir = 0;
@@ -529,11 +548,11 @@ namespace mITroid.NSPC
                                     int val = eEvent.Parameters[0];
                                     if (val == 0)
                                     {
-                                        val = g_memory;
+                                        val = Memory[Channel].NotePortamento;
                                     }
                                     else
                                     {
-                                        g_memory = val;
+                                        Memory[Channel].NotePortamento = val;
                                     }
 
                                     int semitones = Math.Abs(nEvent.Value - lastnote);
@@ -815,13 +834,13 @@ namespace mITroid.NSPC
                         {
                             if (startRow == 0)
                             {
-                                if (vSearch.Value == 0)
+                                if (vSearch.Parameters[0] == 0)
                                 {
-                                    vSearch.Value = ef_memory;
+                                    vSearch.Parameters[0] = Memory[Channel].Portamento;
                                 }
                                 else
                                 {
-                                    ef_memory = vSearch.Value;
+                                    Memory[Channel].Portamento = vSearch.Parameters[0];
                                 }
 
                                 startRow = search;
@@ -878,13 +897,15 @@ namespace mITroid.NSPC
                         {
                             if (startRow == 0)
                             {
-                                if (curEvent.Value == 0)
+                                if (curEvent.Parameters[0] == 0 && curEvent.Parameters[1] == 0)
                                 {
-                                    curEvent.Value = hu_memory;
+                                    curEvent.Parameters[0] = Memory[Channel].VibratoRate;
+                                    curEvent.Parameters[1] = Memory[Channel].VibratoDepth;
                                 }
                                 else
                                 {
-                                    hu_memory = curEvent.Value;
+                                    Memory[Channel].VibratoRate = curEvent.Parameters[0];
+                                    Memory[Channel].VibratoDepth = curEvent.Parameters[1];
                                 }
 
                                 startRow = search;

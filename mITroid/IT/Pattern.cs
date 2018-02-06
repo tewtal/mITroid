@@ -30,6 +30,7 @@ namespace mITroid.IT
 
     class Channel
     {
+        public int ChannelNum { get; set; }
         public List<Row> Rows { get; set; }
         public int LastMaskVariable { get; set; }
         public int LastNote { get; set; }
@@ -60,7 +61,7 @@ namespace mITroid.IT
         {
             _channels = new List<Channel>();
             for (int i = 0; i < 8; i++)
-                _channels.Add(new Channel());
+                _channels.Add(new Channel() { ChannelNum = i });
 
             if (offset == 0)
             {

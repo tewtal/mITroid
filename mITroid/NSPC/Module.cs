@@ -99,12 +99,11 @@ namespace mITroid.NSPC
 
         public decimal ResampleFactor { get; set; }
         public bool EnhanceTreble { get; set; }
-
         public Game Game { get; set; }
-
         public int EngineSpeed { get; set; }
+        public bool UseNewADSR { get; set; }
 
-        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed)
+        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed, bool newAdsr)
         {
             EngineSpeed = engineSpeed;
             Name = itModule.Name;
@@ -112,7 +111,7 @@ namespace mITroid.NSPC
             InitialTempo = (int)Math.Round(itModule.InitialTempo / (4.8 / EngineSpeed), 0);
             InitialSpeed = itModule.InitialSpeed * EngineSpeed;
             LoopSequence = itModule.LoopSequence;
-
+            UseNewADSR = newAdsr;
             Game = Game.SM;
 
             /* Set SM standard values */
@@ -141,7 +140,7 @@ namespace mITroid.NSPC
             _instruments = new List<Instrument>();
             foreach(var itInstrument in itModule.Instruments)
             {
-                var instrument = new Instrument(itInstrument, _samples[((itInstrument.SampleIndex > 0 && itInstrument.SampleIndex <= _samples.Count) ? itInstrument.SampleIndex : 1) - 1]);
+                var instrument = new Instrument(itInstrument, _samples[((itInstrument.SampleIndex > 0 && itInstrument.SampleIndex <= _samples.Count) ? itInstrument.SampleIndex : 1) - 1], this);
                 _instruments.Add(instrument);
             }
 

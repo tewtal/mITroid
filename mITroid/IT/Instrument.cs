@@ -21,6 +21,7 @@ namespace mITroid.IT
         public int GlobalVolume { get; set; }
         public int DefaultPan { get; set; }
         public int SampleIndex { get; set; }
+        public bool SustainLoop { get; set; }
 
         public bool UseEnvelope { get; set; }
 
@@ -45,6 +46,7 @@ namespace mITroid.IT
             file.BaseStream.Seek(offset + 0x130, SeekOrigin.Begin);
             byte flags = file.ReadByte();
             UseEnvelope = ((flags & 1) == 1);
+            SustainLoop = ((flags & 4) == 4);
 
             _nodeNum = file.ReadByte();
 

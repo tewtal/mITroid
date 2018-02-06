@@ -18,7 +18,7 @@ namespace mITroid.NSPC
             Rows = itPattern.Rows;
             foreach(var channel in itPattern.Channels)
             {
-                var track = new Track(channel.Rows);
+                var track = new Track(channel.Rows, channel.ChannelNum);
                 track.Rows = itPattern.Rows;
                 Tracks.Add(track);
             }
