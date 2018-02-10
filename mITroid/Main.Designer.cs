@@ -30,6 +30,9 @@
         {
             this.button1 = new System.Windows.Forms.Button();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox5 = new System.Windows.Forms.GroupBox();
+            this.radioOldADSR = new System.Windows.Forms.RadioButton();
+            this.radioNewADSR = new System.Windows.Forms.RadioButton();
             this.groupBox4 = new System.Windows.Forms.GroupBox();
             this.chkPatchPatternOff = new System.Windows.Forms.CheckBox();
             this.chkPatchNoteOff = new System.Windows.Forms.CheckBox();
@@ -59,15 +62,12 @@
             this.label2 = new System.Windows.Forms.Label();
             this.button2 = new System.Windows.Forms.Button();
             this.button3 = new System.Windows.Forms.Button();
-            this.groupBox5 = new System.Windows.Forms.GroupBox();
-            this.radioOldADSR = new System.Windows.Forms.RadioButton();
-            this.radioNewADSR = new System.Windows.Forms.RadioButton();
             this.groupBox1.SuspendLayout();
+            this.groupBox5.SuspendLayout();
             this.groupBox4.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.Game.SuspendLayout();
             this.groupBox2.SuspendLayout();
-            this.groupBox5.SuspendLayout();
             this.SuspendLayout();
             // 
             // button1
@@ -95,6 +95,39 @@
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Options";
+            // 
+            // groupBox5
+            // 
+            this.groupBox5.Controls.Add(this.radioOldADSR);
+            this.groupBox5.Controls.Add(this.radioNewADSR);
+            this.groupBox5.Location = new System.Drawing.Point(428, 155);
+            this.groupBox5.Name = "groupBox5";
+            this.groupBox5.Size = new System.Drawing.Size(117, 74);
+            this.groupBox5.TabIndex = 8;
+            this.groupBox5.TabStop = false;
+            this.groupBox5.Text = "ADSR Behaviour";
+            // 
+            // radioOldADSR
+            // 
+            this.radioOldADSR.AutoSize = true;
+            this.radioOldADSR.Location = new System.Drawing.Point(6, 43);
+            this.radioOldADSR.Name = "radioOldADSR";
+            this.radioOldADSR.Size = new System.Drawing.Size(99, 17);
+            this.radioOldADSR.TabIndex = 5;
+            this.radioOldADSR.Text = "Old (tick based)";
+            this.radioOldADSR.UseVisualStyleBackColor = true;
+            // 
+            // radioNewADSR
+            // 
+            this.radioNewADSR.AutoSize = true;
+            this.radioNewADSR.Checked = true;
+            this.radioNewADSR.Location = new System.Drawing.Point(6, 20);
+            this.radioNewADSR.Name = "radioNewADSR";
+            this.radioNewADSR.Size = new System.Drawing.Size(107, 17);
+            this.radioNewADSR.TabIndex = 0;
+            this.radioNewADSR.TabStop = true;
+            this.radioNewADSR.Text = "New (time based)";
+            this.radioNewADSR.UseVisualStyleBackColor = true;
             // 
             // groupBox4
             // 
@@ -391,39 +424,6 @@
             this.button3.UseVisualStyleBackColor = true;
             this.button3.Click += new System.EventHandler(this.button3_Click);
             // 
-            // groupBox5
-            // 
-            this.groupBox5.Controls.Add(this.radioOldADSR);
-            this.groupBox5.Controls.Add(this.radioNewADSR);
-            this.groupBox5.Location = new System.Drawing.Point(428, 155);
-            this.groupBox5.Name = "groupBox5";
-            this.groupBox5.Size = new System.Drawing.Size(117, 74);
-            this.groupBox5.TabIndex = 8;
-            this.groupBox5.TabStop = false;
-            this.groupBox5.Text = "ADSR Behaviour";
-            // 
-            // radioOldADSR
-            // 
-            this.radioOldADSR.AutoSize = true;
-            this.radioOldADSR.Location = new System.Drawing.Point(6, 43);
-            this.radioOldADSR.Name = "radioOldADSR";
-            this.radioOldADSR.Size = new System.Drawing.Size(99, 17);
-            this.radioOldADSR.TabIndex = 5;
-            this.radioOldADSR.Text = "Old (tick based)";
-            this.radioOldADSR.UseVisualStyleBackColor = true;
-            // 
-            // radioNewADSR
-            // 
-            this.radioNewADSR.AutoSize = true;
-            this.radioNewADSR.Checked = true;
-            this.radioNewADSR.Location = new System.Drawing.Point(6, 20);
-            this.radioNewADSR.Name = "radioNewADSR";
-            this.radioNewADSR.Size = new System.Drawing.Size(107, 17);
-            this.radioNewADSR.TabIndex = 0;
-            this.radioNewADSR.TabStop = true;
-            this.radioNewADSR.Text = "New (time based)";
-            this.radioNewADSR.UseVisualStyleBackColor = true;
-            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -435,9 +435,11 @@
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.button1);
             this.Name = "Main";
-            this.Text = "mITroid Music Converter v0.98";
+            this.Text = "mITroid Music Converter v0.98.2";
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.groupBox5.ResumeLayout(false);
+            this.groupBox5.PerformLayout();
             this.groupBox4.ResumeLayout(false);
             this.groupBox4.PerformLayout();
             this.groupBox3.ResumeLayout(false);
@@ -446,8 +448,6 @@
             this.Game.PerformLayout();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
-            this.groupBox5.ResumeLayout(false);
-            this.groupBox5.PerformLayout();
             this.ResumeLayout(false);
 
         }

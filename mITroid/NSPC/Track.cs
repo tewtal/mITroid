@@ -1096,7 +1096,7 @@ namespace mITroid.NSPC
                     }
                     patternLength += noteLength;
 
-                    if (iEvent == null)
+                    if (iEvent == null || eEvent != null && ((Effect)eEvent.Value) == Effect.NotePortamento)
                     {
                         byteList.Add(0xC8);
                     }
