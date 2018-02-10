@@ -109,7 +109,7 @@ namespace mITroid.NSPC
                 case ITEffect.Volume:
                     {
                         ev.Value = (int)Effect.Volume;
-                        ev.Parameters = new List<int>() { ConvertVolume(itRow.Value) };
+                        ev.Parameters = new List<int>() { itRow.Value };  //ConvertVolume(itRow.Value) };
                         break;
                     }
 
@@ -206,8 +206,10 @@ namespace mITroid.NSPC
 
 
             int vp = (val == 0) ? 0 : VolumeLUT[val - 1];
-            int volume = (int)((vp > 0) ? (vp * 4) - 1 : 0);
-            return volume;
+            //int volume = (int)((vp > 0) ? (vp * 4) - 1 : 0);
+            //return volume;
+            //return vp;
+            return vp;
         }
     }
 
@@ -217,12 +219,15 @@ namespace mITroid.NSPC
         public int VibratoRate { get; set; }
         public int VibratoDepth { get; set; }
         public int NotePortamento { get; set; }
+        public int InstrumentIndex { get; set; }
+        public int NoteVolume { get; set; }
+        public int Volume { get; set; }
     }
 
 
     class Track
     {
-        private static EffectMemory[] Memory;
+        public static EffectMemory[] Memory;
 
         public int Rows { get; set; }
         public int Pointer { get; set; }
@@ -274,7 +279,7 @@ namespace mITroid.NSPC
                     var instrumentEvent = new Event
                     {
                         Type = EventType.Instrument,
-                        Value = row.Instrument + 0x17,
+                        Value = row.Instrument - 1,
                         Row = row.RowNum
                     };
                     Events.Add(instrumentEvent);
@@ -285,7 +290,7 @@ namespace mITroid.NSPC
                     var volumeEvent = new Event
                     {
                         Type = EventType.Volume,
-                        Value = Event.ConvertVolume(row.Volume),
+                        Value = row.Volume, //Event.ConvertVolume(row.Volume),
                         Row = row.RowNum
                     };
                     Events.Add(volumeEvent);
@@ -298,6 +303,25 @@ namespace mITroid.NSPC
             }
         }
 
+        private byte Vol(int vol, Instrument i, Module mod)
+        {
+            int v = 0;
+            if (i != null)
+            {
+                //return (byte)(((Event.ConvertVolume(vol) * Event.ConvertVolume(i.SampleVolume) * (Event.ConvertVolume(i.InstrumentVolume/2)*2) * mod.ChannelVolume[Channel]) / 131072) - 1);
+                v = (((vol * i.SampleVolume * i.InstrumentVolume * mod.ChannelVolume[Channel]) / 131072) - 1);
+            }
+            else
+            {
+                v = (((vol * 64 * 128 * mod.ChannelVolume[Channel]) / 131072) - 1);
+            }
+
+            //return v == 0 ? (byte)0 : (byte)Math.Round((46 * Math.Log(v)), 0);
+            //return v == 0 ? (byte)0 : (byte)Math.Floor((32 * Math.Log(v, 2)));
+            return v == 0 ? (byte)0 : (byte)Math.Round(57.0 * Math.Log((v / 12.0) + 1, 2), 0);
+            //return (v == 0 ? (byte)0 : (byte)(63 + (v * 0.75)));
+        }
+
         /* This function takes a track and encodes it as the N-SPC output stream */
         public void GenerateData(Module module)
         {
@@ -305,24 +329,27 @@ namespace mITroid.NSPC
             int noteLength = 0;
             int volumeSlide = 0;
             int volume = 0xFE;
-            int instrument = 0;
+            int instrument = -1;
             int novolumechange = 0;
             int notedelay = 0;
             int lastnote = 0;
             int patternLength = 0;
-            int norest = 0;
             int portamento = 0;
-            int vibrato = 0;
+            int lastnotevol = 0;
+            Instrument nI = null;
 
-            if (Memory == null)
+            if(Memory[Channel].InstrumentIndex != 0)
             {
-                Memory = new EffectMemory[8];
-                for(int i = 0; i < 8; i++)
-                {
-                    Memory[i] = new EffectMemory();
-                }
+                nI = module.Instruments.Where(x => x.OriginalInstrumentIndex == Memory[Channel].InstrumentIndex).FirstOrDefault();
             }
 
+            if(nI == null)
+            {
+                nI = new Instrument() { DefaultVolume = 64, InstrumentVolume = 128, SampleVolume = 64 };
+            }
+
+            lastnotevol = Memory[Channel].NoteVolume;
+            volume = Memory[Channel].Volume;
 
             if (Events.Count == 0)
             {
@@ -367,18 +394,18 @@ namespace mITroid.NSPC
                     if (instrument != iEvent.Value)
                     {
                         byteList.Add((byte)Effect.Instrument);
-                        var i = module.Instruments[iEvent.Value - 0x18];
-                        if(i.InternalInstrument >= 0)
+                        nI = module.Instruments.Where(x => x.OriginalInstrumentIndex == iEvent.Value).FirstOrDefault();
+                        if (nI != null)
                         {
-                            byteList.Add((byte)i.InternalInstrument);
+                            byteList.Add((byte)nI.InstrumentIndex);
+                            iEvent.Processed = true;
+                            instrument = nI.OriginalInstrumentIndex;
+                            Memory[Channel].InstrumentIndex = nI.OriginalInstrumentIndex;
                         }
                         else
                         {
-                            byteList.Add((byte)iEvent.Value);
+                            continue;
                         }
-
-                        iEvent.Processed = true;
-                        instrument = iEvent.Value;
                     }
                 }
 
@@ -392,14 +419,15 @@ namespace mITroid.NSPC
                             {
                                 byteList.Add((byte)Effect.VolumeSlide);
                                 byteList.Add((byte)0x01);
-                                byteList.Add((byte)vEvent.Value);
+                                //byteList.Add((byte)vEvent.Value);
+                                byteList.Add(Vol(vEvent.Value, nI, module));
                                 vEvent.Processed = true;
                                 volume = vEvent.Value;
                             }
                             else
                             {
                                 byteList.Add((byte)Effect.Volume);
-                                byteList.Add((byte)vEvent.Value);
+                                byteList.Add(Vol(vEvent.Value, nI, module));
                                 vEvent.Processed = true;
                                 volume = vEvent.Value;
                             }
@@ -470,19 +498,19 @@ namespace mITroid.NSPC
                                 if(vEvent.Value != volume)
                                 {
                                     byteList.Add((byte)Effect.Volume);
-                                    byteList.Add((byte)vEvent.Value);
+                                    byteList.Add(Vol(vEvent.Value, nI, module));
                                 }
 
                                 int fadeRows = (targetRow - row);
                                 byteList.Add((byte)Effect.VolumeSlide);
                                 byteList.Add((byte)(fadeRows * module.CurrentSpeed));
-                                byteList.Add((byte)targetVolume);
+                                byteList.Add(Vol(targetVolume, nI, module));
                             }
                             else
                             {
                                 byteList.Add((byte)Effect.VolumeSlide);
                                 byteList.Add((byte)0x01);
-                                byteList.Add((byte)targetVolume);
+                                byteList.Add(Vol(targetVolume, nI, module));
                             }
                             volume = targetVolume;
                         }
@@ -508,7 +536,7 @@ namespace mITroid.NSPC
                             {
                                 byteList.Add((byte)Effect.Tempo);
                                 byteList.Add((byte)Math.Round(eEvent.Parameters[0] / (4.8 / module.EngineSpeed), 0));
-                                module.CurrentTempo = eEvent.Parameters[0];
+                                module.CurrentTempo = (int)Math.Round((eEvent.Parameters[0] / (4.8 / module.EngineSpeed)),0);
                                 break;
                             }
 
@@ -523,20 +551,19 @@ namespace mITroid.NSPC
                             }
                         case Effect.Volume:
                             {
-                                if (eEvent.Parameters[0] != volume)
+                                if (eEvent.Parameters[0] != module.ChannelVolume[Channel])
                                 {
+                                    module.ChannelVolume[Channel] = eEvent.Parameters[0];
                                     if (volumeSlide == 1)
                                     {
                                         effectList.Add((byte)Effect.VolumeSlide);
                                         effectList.Add((byte)0x01);
-                                        effectList.Add((byte)eEvent.Parameters[0]);
-                                        volume = eEvent.Parameters[0];
+                                        effectList.Add(Vol(volume, nI, module));
                                     }
                                     else
                                     {
                                         byteList.Add((byte)Effect.Volume);
-                                        byteList.Add((byte)eEvent.Parameters[0]);
-                                        volume = eEvent.Parameters[0];
+                                        effectList.Add(Vol(volume, nI, module));
                                     }
                                 }
                                 break;
@@ -569,12 +596,12 @@ namespace mITroid.NSPC
 
                                     if (vEvent == null)
                                     {
-                                        if (volume != 0xFF)
+                                        if (volume != nI.DefaultVolume)
                                         {
+                                            volume = nI.DefaultVolume;
                                             effectList.Add((byte)Effect.VolumeSlide);
                                             effectList.Add((byte)0x01);
-                                            effectList.Add((byte)0xFF);
-                                            volume = 0xFF;
+                                            effectList.Add(Vol(volume, nI, module));
                                             volumeSlide = 0;
                                         }
                                     }
@@ -663,7 +690,7 @@ namespace mITroid.NSPC
                                 int val = eEvent.Parameters[1];
                                 int slideDirection = (val < 0x10 ? 0 : 1);
                                 int volumeChange = (slideDirection == 0 ? (val & 0xF) : ((val >> 4) & 0xF));
-                                int volumeChangePerRow = (volumeChange * (module.CurrentSpeed-1)) * 2;
+                                int volumeChangePerRow = (volumeChange * (module.CurrentSpeed-1));
                                 int targetVolumeChange = (slideDirection == 0 ? -volumeChangePerRow : volumeChangePerRow);
                                 int targetVolumeChangeRows = 1;
                                 var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
@@ -692,19 +719,19 @@ namespace mITroid.NSPC
                                 if (finalVolume < 0)
                                     finalVolume = 0;
 
-                                if (finalVolume > 0xFF)
-                                    finalVolume = 0xFF;
+                                if (finalVolume > 0x40)
+                                    finalVolume = 0x40;
 
                                 if (nEvent != null)
                                 {
                                     novolumechange = 1;
                                     byteList.Add((byte)Effect.Volume);
-                                    byteList.Add((byte)0xFF);
+                                    byteList.Add(Vol(nI.DefaultVolume, nI, module));
                                 }
 
                                 effectList.Add((byte)Effect.VolumeSlide);
                                 effectList.Add((byte)((targetVolumeChangeRows * module.CurrentSpeed)));
-                                effectList.Add((byte)finalVolume);
+                                effectList.Add(Vol(finalVolume, nI, module));
                                 volume = finalVolume;
                                 volumeSlide = 1;
                                 break;
@@ -943,24 +970,39 @@ namespace mITroid.NSPC
 
                     if (nEvent.Value == 0xFF)
                     {
-                        int fadeOutVal = 20 * module.CurrentSpeed;
+                        int fadeOutVal = nI.FadeOut * module.EngineSpeed;
                         if (fadeOutVal > 0xFF)
-                            fadeOutVal = 0xfF;
+                            fadeOutVal = 0xFF;
 
-                        byteList.Add((byte)Effect.VolumeSlide);
-                        byteList.Add((byte)fadeOutVal);
-                        byteList.Add((byte)0x00);
-                        volumeSlide = 1;
-                        volume = 0;
-
-                        if (newLength != noteLength)
+                        if (fadeOutVal == 0)
                         {
-                            noteLength = newLength;
-                            byteList.Add((byte)noteLength);
-                        }
+                            if (newLength != noteLength)
+                            {
+                                noteLength = newLength;
+                                byteList.Add((byte)noteLength);
+                            }
 
-                        patternLength += noteLength;
-                        byteList.Add(0xC8);
+                            patternLength += noteLength;
+                            byteList.Add(0xC9);
+                        }
+                        else
+                        {
+
+                            byteList.Add((byte)Effect.VolumeSlide);
+                            byteList.Add((byte)fadeOutVal);
+                            byteList.Add((byte)0x00);
+                            volumeSlide = 1;
+                            volume = 0;
+
+                            if (newLength != noteLength)
+                            {
+                                noteLength = newLength;
+                                byteList.Add((byte)noteLength);
+                            }
+
+                            patternLength += noteLength;
+                            byteList.Add(0xC8);
+                        }
                         nEvent.Processed = true;
                     }
                     else
@@ -969,19 +1011,39 @@ namespace mITroid.NSPC
                         {
                             if (nEvent.Value < 0xC8)
                             {
-                                if (volumeSlide == 1 && vEvent == null)
+                                if (iEvent != null)
                                 {
-                                    byteList.Add((byte)Effect.VolumeSlide);
-                                    byteList.Add((byte)0x01);
-                                    byteList.Add((byte)0xFF);
-                                    volumeSlide = 0;
-                                    volume = 0xFF;
+                                    if (volumeSlide == 1 && vEvent == null)
+                                    {
+                                        byteList.Add((byte)Effect.VolumeSlide);
+                                        byteList.Add((byte)0x01);
+                                        byteList.Add(Vol(nI.DefaultVolume, nI, module));
+                                        volumeSlide = 0;
+                                        volume = nI.DefaultVolume;
+                                    }
+                                    else if (vEvent == null && volume != nI.DefaultVolume)
+                                    {
+                                        byteList.Add((byte)Effect.Volume);
+                                        byteList.Add(Vol(nI.DefaultVolume, nI, module));
+                                        volume = nI.DefaultVolume;
+                                    }
                                 }
-                                else if (vEvent == null && volume != 0xFF)
+                                else
                                 {
-                                    byteList.Add((byte)Effect.Volume);
-                                    byteList.Add((byte)0xFF);
-                                    volume = 0xFF;
+                                    if (volumeSlide == 1 && vEvent == null)
+                                    {
+                                        byteList.Add((byte)Effect.VolumeSlide);
+                                        byteList.Add((byte)0x01);
+                                        byteList.Add(Vol(lastnotevol, nI, module));
+                                        volumeSlide = 0;
+                                        volume = lastnotevol;
+                                    }
+                                    else if (vEvent == null && volume != lastnotevol)
+                                    {
+                                        byteList.Add((byte)Effect.Volume);
+                                        byteList.Add(Vol(lastnotevol, nI, module));
+                                        volume = lastnotevol;
+                                    }
                                 }
                             }
                         }
@@ -1003,6 +1065,7 @@ namespace mITroid.NSPC
                         patternLength += noteLength;
                         byteList.Add((byte)nEvent.Value);
                         lastnote = nEvent.Value;
+                        lastnotevol = volume;
                         nEvent.Processed = true;
 
                         if(portamento == 1)
@@ -1025,7 +1088,15 @@ namespace mITroid.NSPC
                         byteList.Add((byte)noteLength);
                     }
                     patternLength += noteLength;
-                    byteList.Add(0xC8);
+
+                    if (iEvent == null)
+                    {
+                        byteList.Add(0xC8);
+                    }
+                    else
+                    {
+                        byteList.Add((byte)lastnote);
+                    }
 
                     /* If we're not on a note, apply effects after the rest to get proper timing on effects */
                     byteList.AddRange(effectList);
@@ -1034,6 +1105,9 @@ namespace mITroid.NSPC
                 row += ((noteLength + notedelay) / module.CurrentSpeed) - 1;
                 notedelay = 0;
             }
+
+            Memory[Channel].NoteVolume = lastnotevol;
+            Memory[Channel].Volume = volume;
 
             byteList.Add(0);
             Data = byteList.ToArray();

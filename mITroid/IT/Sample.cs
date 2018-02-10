@@ -13,6 +13,7 @@ namespace mITroid.IT
         private uint _samplePointer;
 
         public string Name { get; set; }
+        public string FileName { get; set; }
         public int GlobalVolume { get; set; }
         public int Volume { get; set; }
         public bool UseLoop { get; set; }
@@ -28,6 +29,9 @@ namespace mITroid.IT
 
         public Sample(BinaryReader file, uint offset, int index)
         {
+            file.BaseStream.Seek(offset + 0x04, SeekOrigin.Begin);
+            FileName = new string(file.ReadChars(12)).Trim('\0');
+
             file.BaseStream.Seek(offset + 0x11, SeekOrigin.Begin);
             GlobalVolume = file.ReadByte();
             _flags = file.ReadByte();

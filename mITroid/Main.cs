@@ -122,9 +122,11 @@ namespace mITroid
         {
             if(_module != null)
             {
-                var sfd = new SaveFileDialog();
-                sfd.FileName = _fileName.Replace(".it", ".spc");
-                if(sfd.ShowDialog() == DialogResult.OK)
+                var sfd = new SaveFileDialog
+                {
+                    FileName = _fileName.Replace(".it", ".spc")
+                };
+                if (sfd.ShowDialog() == DialogResult.OK)
                 {
                     var spcData = File.OpenRead(Application.StartupPath + "\\smorg.spc");
                     byte[] fileData = new byte[spcData.Length];
@@ -151,8 +153,10 @@ namespace mITroid
         {
             if (_module != null)
             {
-                var sfd = new SaveFileDialog();
-                sfd.FileName = _fileName.Replace(".it", ".nspc");
+                var sfd = new SaveFileDialog
+                {
+                    FileName = _fileName.Replace(".it", ".nspc")
+                };
                 if (sfd.ShowDialog() == DialogResult.OK)
                 {
                     List<byte> fileData = new List<byte>();

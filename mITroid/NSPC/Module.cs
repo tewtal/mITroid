@@ -39,9 +39,11 @@ namespace mITroid.NSPC
         public static List<Chunk> GetPatchChunks(List<Patch> patches)
         {
             var chunks = new List<Chunk>();
-            var patchCode = new List<byte>();
 
-            patchCode.Add(0x2D);
+            var patchCode = new List<byte>
+            {
+                0x2D
+            };
 
             foreach (var p in patches)
             {
@@ -96,12 +98,15 @@ namespace mITroid.NSPC
         public int SampleHeaderOffset { get; set; }
         public int InstrumentOffset { get; set; }
         public int SampleOffset { get; set; }
+        public int SampleIndexOffset { get; set; }
+        public int InstrumentIndexOffset { get; set; }
 
         public decimal ResampleFactor { get; set; }
         public bool EnhanceTreble { get; set; }
         public Game Game { get; set; }
         public int EngineSpeed { get; set; }
         public bool UseNewADSR { get; set; }
+        public int[] ChannelVolume { get; set; }
 
         public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed, bool newAdsr)
         {
@@ -113,6 +118,7 @@ namespace mITroid.NSPC
             LoopSequence = itModule.LoopSequence;
             UseNewADSR = newAdsr;
             Game = Game.SM;
+            ChannelVolume = new int[] { 64, 64, 64, 64, 64, 64, 64, 64 };
 
             /* Set SM standard values */
             if (Game == Game.SM)
@@ -121,13 +127,28 @@ namespace mITroid.NSPC
                 InstrumentOffset = 0x6c90;
                 PatternOffset = 0x5828;
                 SampleOffset = 0xb210;
+                SampleIndexOffset = 0x18;
+                InstrumentIndexOffset = 0x18;
             }
             else if (Game == Game.ALTTP)
             {
                 SampleHeaderOffset = 0x3c00;
                 InstrumentOffset = 0x3d00;
                 SampleOffset = 0x4000;
-                PatternOffset = 0xD000;                
+                PatternOffset = 0xD000;
+                SampleIndexOffset = 0x00;
+                InstrumentIndexOffset = 0x00;
+            }
+
+            Track.Memory = new EffectMemory[8];
+            for (int i = 0; i < 8; i++)
+            {
+                Track.Memory[i] = new EffectMemory();
+            }
+
+            for (int i = 0; i < itModule.InitialChannelVolume.Count; i++)
+            {
+                ChannelVolume[i] = itModule.InitialChannelVolume[i];
             }
 
             _samples = new List<Sample>();
@@ -168,33 +189,43 @@ namespace mITroid.NSPC
             CurrentSpeed = InitialSpeed;
             CurrentTempo = InitialTempo;
 
-            var sampleChunk = new Chunk();
-            sampleChunk.Offset = SampleOffset;
+            var sampleChunk = new Chunk
+            {
+                Offset = SampleOffset
+            };
             List<byte> sampleBytes = new List<byte>();
 
             int curOffset = SampleOffset;
+            int sampleIndex = SampleIndexOffset;
             foreach (var s in _samples.OrderBy(x => x.SampleIndex))
             {
-                s.StartAddress = curOffset;
-                s.LoopAddress = curOffset + s.LoopPoint;
-                if (s.Data != null)
+                if (s.Virtual == false)
                 {
-                    sampleBytes.AddRange(s.Data);
-                    curOffset += s.Data.Length;
+                    s.SampleIndex = sampleIndex;
+                    s.StartAddress = curOffset;
+                    s.LoopAddress = curOffset + s.LoopPoint;
+                    if (s.Data != null)
+                    {
+                        sampleBytes.AddRange(s.Data);
+                        curOffset += s.Data.Length;
+                    }
+                    sampleIndex++;
                 }
             }
             sampleChunk.Data = sampleBytes.ToArray();
             sampleChunk.Length = sampleChunk.Data.Length;
             chunks.Add(sampleChunk);
 
-            var sampleHeaderChunk = new Chunk();
-            sampleHeaderChunk.Offset = SampleHeaderOffset;
-            sampleHeaderChunk.Data = new byte[_samples.Count * 4];
+            var sampleHeaderChunk = new Chunk
+            {
+                Offset = SampleHeaderOffset,
+                Data = new byte[_samples.Count * 4]
+            };
             using (MemoryStream ms = new MemoryStream(sampleHeaderChunk.Data))
             {
                 using (BinaryWriter bw = new BinaryWriter(ms))
                 {
-                    foreach (var s in _samples)
+                    foreach (var s in _samples.Where(x => x.Virtual == false).OrderBy(x => x.SampleIndex))
                     {
                         bw.Write((UInt16)s.StartAddress);
                         bw.Write((UInt16)s.LoopAddress);
@@ -204,19 +235,24 @@ namespace mITroid.NSPC
             sampleHeaderChunk.Length = sampleHeaderChunk.Data.Length;
             chunks.Add(sampleHeaderChunk);
 
-            var instrumentChunk = new Chunk();
-            instrumentChunk.Offset = InstrumentOffset;
-            instrumentChunk.Data = new byte[_instruments.Count * 6];
+            var instrumentChunk = new Chunk
+            {
+                Offset = InstrumentOffset,
+                Data = new byte[_instruments.Count * 6]
+            };
+            int instrumentIndex = InstrumentIndexOffset;
             using (MemoryStream ms = new MemoryStream(instrumentChunk.Data))
             {
                 using (BinaryWriter bw = new BinaryWriter(ms))
                 {
-                    foreach (var i in _instruments)
+                    foreach (var i in _instruments.Where(x => x.Virtual == false).OrderBy(x => x.InstrumentIndex))
                     {
-                        bw.Write((byte)i.SampleIndex);
+                        i.InstrumentIndex = instrumentIndex;
+                        bw.Write((byte)_samples[i.SampleIndex].SampleIndex);
                         bw.Write((UInt16)i.ADSR);
                         bw.Write((byte)i.Gain);
                         bw.Write((UInt16)i.PitchAdjustment);
+                        instrumentIndex++;
                     }
                 }
             }
@@ -291,9 +327,11 @@ namespace mITroid.NSPC
             if (chunkEnd == 0)
                 chunkEnd = curOffset;
 
-            var patternChunk = new Chunk();
-            patternChunk.Offset = PatternOffset;
-            patternChunk.Data = new byte[chunkEnd - PatternOffset + 1];
+            var patternChunk = new Chunk
+            {
+                Offset = PatternOffset,
+                Data = new byte[chunkEnd - PatternOffset + 1]
+            };
             using (MemoryStream ms = new MemoryStream(patternChunk.Data))
             {
                 using (BinaryWriter bw = new BinaryWriter(ms))
@@ -356,8 +394,10 @@ namespace mITroid.NSPC
 
             if (_patterns.Where(x => x.Pointer > sampleChunk.Offset).Any())
             {
-                var extraPatternChunk = new Chunk();
-                extraPatternChunk.Offset = (sampleChunk.Offset + sampleChunk.Length);
+                var extraPatternChunk = new Chunk
+                {
+                    Offset = (sampleChunk.Offset + sampleChunk.Length)
+                };
 
                 int extraLength = 0;
                 var lastPattern = _patterns.OrderByDescending(x => x.Pointer).First();

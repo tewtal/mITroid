@@ -56,9 +56,11 @@ namespace mITroid.IT
         public int Rows { get; set; }
         private List<Channel> _channels;
         public List<Channel> Channels { get { return _channels; } }
+        public int PatternIndex { get; set; }
 
-        public Pattern(BinaryReader file, uint offset)
+        public Pattern(BinaryReader file, uint offset, int index)
         {
+            PatternIndex = index;
             _channels = new List<Channel>();
             for (int i = 0; i < 8; i++)
                 _channels.Add(new Channel() { ChannelNum = i });

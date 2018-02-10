@@ -16,15 +16,35 @@ namespace mITroid.NSPC
         public int LoopPoint { get; set; }
         public byte[] Data { get; set; }
         public int SampleIndex {get; set;}
-
+        public int OriginalSampleIndex { get; set; }
         public decimal C5Speed { get; set; }
+        public int GlobalVolume { get; set; }
+        public int DefaultVolume { get; set; }
+        public bool Virtual { get; set; }
         
         public Sample(IT.Sample itSample, bool enhanceTreble, decimal resampleFactor)
         {
-            SampleIndex = itSample.SampleIndex;
+            OriginalSampleIndex = itSample.SampleIndex;
+
+            GlobalVolume = itSample.GlobalVolume;
+            DefaultVolume = itSample.Volume;
 
             if (itSample.Length == 0)
                 return;
+
+            if(itSample.FileName.StartsWith(">"))
+            {
+                int targetSampleIndex = Convert.ToInt32(itSample.FileName.Substring(1));
+                SampleIndex = targetSampleIndex;
+                Virtual = true;
+                Data = new byte[0];
+                return;
+            }
+            else
+            {
+                SampleIndex = itSample.SampleIndex;
+                Virtual = false;
+            }
 
             var encoder = new BRREncoder();
             var bs = encoder.Encode(itSample, enhanceTreble, resampleFactor);
@@ -39,15 +59,7 @@ namespace mITroid.NSPC
                 LoopPoint = bs.Data.Length;
             }
 
-            //if (itSample.UseLoop)
-            //{
             C5Speed = (decimal)itSample.C5Speed * (1.0m / bs.ResampleRatio);
-            //}
-            //else
-            //{
-              //  C5Speed = itSample.C5Speed;
-            //}
-            //C5Speed = (int)itSample.C5Speed;
         }
     }
 }

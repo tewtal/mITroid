@@ -17,6 +17,7 @@ namespace mITroid.IT
         private List<uint> _instrumentOffsets;
         private List<uint> _sampleOffsets;
         private List<uint> _patternOffsets;
+        private List<int> _initialChannelVolume;
 
         private int _patternNum;
         private int _sampleNum;
@@ -31,6 +32,8 @@ namespace mITroid.IT
         public int InitialTempo { get; set; }
         public int LoopSequence { get; set; }
 
+        public List<int> InitialChannelVolume { get { return _initialChannelVolume; } }
+
         public List<Pattern> Patterns { get { return _patterns; } }
         public List<Sample> Samples { get { return _samples; } }
         public List<Instrument> Instruments { get { return _instruments; } }
@@ -44,9 +47,7 @@ namespace mITroid.IT
                 throw new InvalidDataException("The selected file is not an Impulse Tracker file");
             }
 
-
             Name = new string(file.ReadChars(26)).Trim('\0');
-
 
             file.BaseStream.Seek(0x20, SeekOrigin.Begin);
             _sequenceNum = file.ReadUInt16();
@@ -78,6 +79,7 @@ namespace mITroid.IT
                 }
             }
 
+
             file.BaseStream.Seek(0xC0, SeekOrigin.Begin);
             _sequence = new List<byte>(file.ReadBytes(_sequenceNum));
 
@@ -96,7 +98,7 @@ namespace mITroid.IT
             _instruments = new List<Instrument>();
             foreach(uint offset in _instrumentOffsets)
             {
-                Instrument i = new Instrument(file, offset);
+                Instrument i = new Instrument(file, offset, _instrumentOffsets.IndexOf(offset));
                 _instruments.Add(i);
             }
 
@@ -108,13 +110,20 @@ namespace mITroid.IT
             }
 
             _patterns = new List<Pattern>();
+            int pi = 0;
             foreach(uint offset in _patternOffsets)
             {
-                Pattern p = new Pattern(file, offset);
+                Pattern p = new Pattern(file, offset, pi);
                 _patterns.Add(p);
+                pi++;
             }
 
+            file.BaseStream.Seek(0x80, SeekOrigin.Begin);
+            _initialChannelVolume = new List<int>();
+            for(int i = 0; i < _patterns[0].Channels.Count; i++)
+            {
+                _initialChannelVolume.Add(file.ReadByte());
+            }
         }
-
     }
 }

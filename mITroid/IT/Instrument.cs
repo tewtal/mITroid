@@ -17,19 +17,25 @@ namespace mITroid.IT
     class Instrument
     {
         public string Name { get; set; }
+        public string FileName { get; set; }
         public int FadeOut { get; set; }
         public int GlobalVolume { get; set; }
         public int DefaultPan { get; set; }
         public int SampleIndex { get; set; }
         public bool SustainLoop { get; set; }
-
         public bool UseEnvelope { get; set; }
+        public int InstrumentIndex { get; set; }
 
         public List<EnvelopeNode> EnvelopeNodes { get; set; }
         private int _nodeNum;
 
-        public Instrument(BinaryReader file, uint offset)
+        public Instrument(BinaryReader file, uint offset, int index)
         {
+            InstrumentIndex = index;
+
+            file.BaseStream.Seek(offset + 0x04, SeekOrigin.Begin);
+            FileName = new string(file.ReadChars(12)).Trim('\0');
+
             file.BaseStream.Seek(offset + 0x14, SeekOrigin.Begin);
             FadeOut = file.ReadUInt16();
 
