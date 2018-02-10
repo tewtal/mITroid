@@ -108,6 +108,9 @@ namespace mITroid.NSPC
         public bool UseNewADSR { get; set; }
         public int[] ChannelVolume { get; set; }
 
+        public Dictionary<int,int> SampleIndexMap { get; set; }
+        public Dictionary<int,int> InstrumentIndexMap { get; set; }
+
         public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed, bool newAdsr)
         {
             EngineSpeed = engineSpeed;
@@ -119,6 +122,9 @@ namespace mITroid.NSPC
             UseNewADSR = newAdsr;
             Game = Game.SM;
             ChannelVolume = new int[] { 64, 64, 64, 64, 64, 64, 64, 64 };
+
+            SampleIndexMap = new Dictionary<int, int>();
+            InstrumentIndexMap = new Dictionary<int, int>();
 
             /* Set SM standard values */
             if (Game == Game.SM)
@@ -152,17 +158,71 @@ namespace mITroid.NSPC
             }
 
             _samples = new List<Sample>();
+            int sidx = SampleIndexOffset;
             foreach (var itSample in itModule.Samples)
             {
                 var sample = new Sample(itSample, enhanceTreble, resampleFactor);
                 _samples.Add(sample);
+                if (sample.VirtualSampleType == 1)
+                {
+                    SampleIndexMap.Add(sample.SampleIndex, sample.VirtualSampleIndex);
+                }
+                else if(sample.VirtualSampleType == 2)
+                {
+                    SampleIndexMap.Add(sample.SampleIndex, sample.VirtualSampleIndex);
+                }
+                else
+                {
+                    SampleIndexMap.Add(sample.SampleIndex, sidx);
+                    sidx++;
+                }
             }
 
+            foreach(var nSample in _samples)
+            {
+                /* Update and correct sample indexes according to map */
+                if(nSample.VirtualSampleType != 2)
+                {
+                    nSample.SampleIndex = SampleIndexMap[nSample.SampleIndex];
+                }
+                else
+                {
+                    nSample.SampleIndex = SampleIndexMap[nSample.VirtualSampleIndex - 1];
+                }
+            }
+
+            int iidx = InstrumentIndexOffset;
             _instruments = new List<Instrument>();
             foreach(var itInstrument in itModule.Instruments)
             {
                 var instrument = new Instrument(itInstrument, _samples[((itInstrument.SampleIndex > 0 && itInstrument.SampleIndex <= _samples.Count) ? itInstrument.SampleIndex : 1) - 1], this);
                 _instruments.Add(instrument);
+                if (instrument.VirtualInstrumentType == 1)
+                {
+                    InstrumentIndexMap.Add(instrument.InstrumentIndex, instrument.VirtualInstrumentIndex);
+                }
+                else if (instrument.VirtualInstrumentType == 2)
+                {
+                    InstrumentIndexMap.Add(instrument.InstrumentIndex, instrument.VirtualInstrumentIndex);
+                }
+                else
+                {
+                    InstrumentIndexMap.Add(instrument.InstrumentIndex, iidx);
+                    iidx++;
+                }
+            }
+
+            foreach (var nInstrument in _instruments)
+            {
+                /* Update and correct sample indexes according to map */
+                if (nInstrument.VirtualInstrumentType != 2)
+                {
+                    nInstrument.InstrumentIndex = InstrumentIndexMap[nInstrument.InstrumentIndex];
+                }
+                else
+                {
+                    nInstrument.InstrumentIndex = InstrumentIndexMap[nInstrument.VirtualInstrumentIndex - 1];
+                }
             }
 
             _patterns = new List<Pattern>();
@@ -196,12 +256,10 @@ namespace mITroid.NSPC
             List<byte> sampleBytes = new List<byte>();
 
             int curOffset = SampleOffset;
-            int sampleIndex = SampleIndexOffset;
             foreach (var s in _samples.OrderBy(x => x.SampleIndex))
             {
-                if (s.Virtual == false)
+                if (s.VirtualSampleType == 0)
                 {
-                    s.SampleIndex = sampleIndex;
                     s.StartAddress = curOffset;
                     s.LoopAddress = curOffset + s.LoopPoint;
                     if (s.Data != null)
@@ -209,7 +267,6 @@ namespace mITroid.NSPC
                         sampleBytes.AddRange(s.Data);
                         curOffset += s.Data.Length;
                     }
-                    sampleIndex++;
                 }
             }
             sampleChunk.Data = sampleBytes.ToArray();
@@ -225,13 +282,14 @@ namespace mITroid.NSPC
             {
                 using (BinaryWriter bw = new BinaryWriter(ms))
                 {
-                    foreach (var s in _samples.Where(x => x.Virtual == false).OrderBy(x => x.SampleIndex))
+                    foreach (var s in _samples.Where(x => x.VirtualSampleType == 0).OrderBy(x => x.SampleIndex))
                     {
                         bw.Write((UInt16)s.StartAddress);
                         bw.Write((UInt16)s.LoopAddress);
                     }
                 }
             }
+
             sampleHeaderChunk.Length = sampleHeaderChunk.Data.Length;
             chunks.Add(sampleHeaderChunk);
 
@@ -240,22 +298,21 @@ namespace mITroid.NSPC
                 Offset = InstrumentOffset,
                 Data = new byte[_instruments.Count * 6]
             };
-            int instrumentIndex = InstrumentIndexOffset;
+
             using (MemoryStream ms = new MemoryStream(instrumentChunk.Data))
             {
                 using (BinaryWriter bw = new BinaryWriter(ms))
                 {
-                    foreach (var i in _instruments.Where(x => x.Virtual == false).OrderBy(x => x.InstrumentIndex))
+                    foreach (var i in _instruments.Where(x => x.VirtualInstrumentType == 0).OrderBy(x => x.InstrumentIndex))
                     {
-                        i.InstrumentIndex = instrumentIndex;
-                        bw.Write((byte)_samples[i.SampleIndex].SampleIndex);
+                        bw.Write((byte)i.SampleIndex);
                         bw.Write((UInt16)i.ADSR);
                         bw.Write((byte)i.Gain);
                         bw.Write((UInt16)i.PitchAdjustment);
-                        instrumentIndex++;
                     }
                 }
             }
+
             instrumentChunk.Length = instrumentChunk.Data.Length;
             chunks.Add(instrumentChunk);
 

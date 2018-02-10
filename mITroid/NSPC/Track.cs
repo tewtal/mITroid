@@ -222,6 +222,13 @@ namespace mITroid.NSPC
         public int InstrumentIndex { get; set; }
         public int NoteVolume { get; set; }
         public int Volume { get; set; }
+
+        public EffectMemory()
+        {
+            Volume = -1;
+            NoteVolume = -1;
+            InstrumentIndex = -1;
+        }
     }
 
 
@@ -318,7 +325,7 @@ namespace mITroid.NSPC
 
             //return v == 0 ? (byte)0 : (byte)Math.Round((46 * Math.Log(v)), 0);
             //return v == 0 ? (byte)0 : (byte)Math.Floor((32 * Math.Log(v, 2)));
-            return v == 0 ? (byte)0 : (byte)Math.Round(57.0 * Math.Log((v / 12.0) + 1, 2), 0);
+            return v < 1 ? (byte)0 : (byte)Math.Round(57.0 * Math.Log((v / 12.0) + 1, 2), 0);
             //return (v == 0 ? (byte)0 : (byte)(63 + (v * 0.75)));
         }
 
@@ -338,9 +345,9 @@ namespace mITroid.NSPC
             int lastnotevol = 0;
             Instrument nI = null;
 
-            if(Memory[Channel].InstrumentIndex != 0)
+            if(Memory[Channel].InstrumentIndex >= 0)
             {
-                nI = module.Instruments.Where(x => x.OriginalInstrumentIndex == Memory[Channel].InstrumentIndex).FirstOrDefault();
+                nI = module.Instruments[Memory[Channel].InstrumentIndex];
             }
 
             if(nI == null)
@@ -394,13 +401,13 @@ namespace mITroid.NSPC
                     if (instrument != iEvent.Value)
                     {
                         byteList.Add((byte)Effect.Instrument);
-                        nI = module.Instruments.Where(x => x.OriginalInstrumentIndex == iEvent.Value).FirstOrDefault();
+                        nI = module.Instruments[iEvent.Value];
                         if (nI != null)
                         {
                             byteList.Add((byte)nI.InstrumentIndex);
                             iEvent.Processed = true;
-                            instrument = nI.OriginalInstrumentIndex;
-                            Memory[Channel].InstrumentIndex = nI.OriginalInstrumentIndex;
+                            instrument = iEvent.Value;
+                            Memory[Channel].InstrumentIndex = instrument;
                         }
                         else
                         {

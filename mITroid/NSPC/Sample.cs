@@ -16,16 +16,15 @@ namespace mITroid.NSPC
         public int LoopPoint { get; set; }
         public byte[] Data { get; set; }
         public int SampleIndex {get; set;}
-        public int OriginalSampleIndex { get; set; }
         public decimal C5Speed { get; set; }
         public int GlobalVolume { get; set; }
         public int DefaultVolume { get; set; }
-        public bool Virtual { get; set; }
+        public int VirtualSampleType { get; set; }
+        public int VirtualSampleIndex { get; set; }
         
         public Sample(IT.Sample itSample, bool enhanceTreble, decimal resampleFactor)
         {
-            OriginalSampleIndex = itSample.SampleIndex;
-
+            SampleIndex = itSample.SampleIndex;
             GlobalVolume = itSample.GlobalVolume;
             DefaultVolume = itSample.Volume;
 
@@ -35,15 +34,14 @@ namespace mITroid.NSPC
             if(itSample.FileName.StartsWith(">"))
             {
                 int targetSampleIndex = Convert.ToInt32(itSample.FileName.Substring(1));
-                SampleIndex = targetSampleIndex;
-                Virtual = true;
-                Data = new byte[0];
-                return;
+                VirtualSampleIndex = targetSampleIndex;
+                VirtualSampleType = 1;
             }
-            else
+            else if(itSample.FileName.StartsWith("<"))
             {
-                SampleIndex = itSample.SampleIndex;
-                Virtual = false;
+                int targetSampleIndex = Convert.ToInt32(itSample.FileName.Substring(1));
+                VirtualSampleIndex = targetSampleIndex;
+                VirtualSampleType = 2;
             }
 
             var encoder = new BRREncoder();
@@ -60,6 +58,11 @@ namespace mITroid.NSPC
             }
 
             C5Speed = (decimal)itSample.C5Speed * (1.0m / bs.ResampleRatio);
+            if (VirtualSampleType > 0)
+            {
+                Data = new byte[0];
+            }
+
         }
     }
 }

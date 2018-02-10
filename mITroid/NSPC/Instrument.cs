@@ -8,18 +8,17 @@ namespace mITroid.NSPC
 {
     class Instrument
     {
-        public int SampleIndex { get; set; }
         public int ADSR { get; set; }
         public int Gain { get; set; }
         public int PitchAdjustment { get; set; }
-        public int InternalInstrument { get; set; }
         public int InstrumentVolume { get; set; }
         public int SampleVolume { get; set; }
         public int DefaultVolume { get; set; }
         public int FadeOut { get; set; }
         public int InstrumentIndex { get; set; }
-        public int OriginalInstrumentIndex { get; set; }
-        public bool Virtual { get; set; }
+        public int VirtualInstrumentType { get; set; }
+        public int VirtualInstrumentIndex { get; set; }
+        public int SampleIndex { get; set; }
 
         private static readonly int[] AttackTable = { 4100, 2500, 1500, 1000, 640, 380, 260, 160, 96, 64, 40, 24, 16, 10, 6, 0 };
         private static readonly int[] DecayTable = { 1200, 740, 440, 290, 180, 110, 74, 37 };
@@ -53,19 +52,23 @@ namespace mITroid.NSPC
 
         public Instrument(IT.Instrument itInstrument, NSPC.Sample nSample, NSPC.Module nModule)
         {
-            OriginalInstrumentIndex = itInstrument.InstrumentIndex;
-            SampleIndex = nSample.OriginalSampleIndex;
+            InstrumentIndex = itInstrument.InstrumentIndex;
             FadeOut = itInstrument.FadeOut;
+            SampleIndex = nSample.SampleIndex;
 
-            if(itInstrument.FileName.StartsWith(">"))
+            if (itInstrument.FileName.StartsWith(">"))
             {
-                InstrumentIndex = Convert.ToInt32(itInstrument.FileName.Substring(1));
-                Virtual = true;
+                int targetInstrumentIndex = Convert.ToInt32(itInstrument.FileName.Substring(1));
+                VirtualInstrumentIndex = targetInstrumentIndex;
+                VirtualInstrumentType = 1;
+                return;
             }
-            else
+            else if (itInstrument.FileName.StartsWith("<"))
             {
-                InstrumentIndex = itInstrument.InstrumentIndex;
-                Virtual = false;
+                int targetInstrumentIndex = Convert.ToInt32(itInstrument.FileName.Substring(1));
+                VirtualInstrumentIndex = targetInstrumentIndex;
+                VirtualInstrumentType = 2;
+                return;
             }
 
             if (itInstrument.UseEnvelope && itInstrument.EnvelopeNodes.Count > 3)
