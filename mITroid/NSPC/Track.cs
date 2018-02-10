@@ -977,7 +977,7 @@ namespace mITroid.NSPC
 
                     if (nEvent.Value == 0xFF)
                     {
-                        int fadeOutVal = nI.FadeOut * module.EngineSpeed;
+                        int fadeOutVal = (nI.FadeOut * 32) * module.EngineSpeed;
                         if (fadeOutVal > 0xFF)
                             fadeOutVal = 0xFF;
 
