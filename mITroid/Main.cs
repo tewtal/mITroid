@@ -69,7 +69,7 @@ namespace mITroid
                     newAdsr = false;
                 }
 
-                _module = new Module(it, chkTreble.Checked, resampleFactor, engineSpeed, newAdsr, (radioSM.Checked ? NSPC.Game.SM : NSPC.Game.ALTTP));
+                _module = new Module(it, chkTreble.Checked, resampleFactor, engineSpeed, newAdsr, (radioSM.Checked ? NSPC.Game.SM : NSPC.Game.ALTTP), chkOverwrite.Checked);
                 _chunks = _module.GenerateData();
 
                 var patches = new List<Patch>();
@@ -112,12 +112,18 @@ namespace mITroid
                     _chunks.AddRange(Patch.GetPatchChunks(patches, _module.Game));
                 }
 
+                int instrumentSize = (0x100 - (_module.InstrumentOffset & 0xFF));
+                int sampleHeaderSize = (0x100 - (_module.SampleHeaderOffset & 0xFF));
+                int musicDataSize = (_module.PatternEnd - _module.PatternOffset);
+                int sampleSize = 0;
+
                 if (_module.Game == NSPC.Game.SM)
                 {
-                    lblInstruments.Text = _module.Instruments.Count.ToString() + " instruments - " + _chunks[2].Length + " bytes (" + ((int)((_chunks[2].Length / (double)0x70) * 100)).ToString() + "%)";
-                    lblSamplesHeaders.Text = _module.Samples.Where(x => x.VirtualSampleType == 0).Count().ToString() + " headers - " + _chunks[1].Length + " bytes (" + ((int)((_chunks[1].Length / (double)0xA0) * 100)).ToString() + "%)";
-                    lblSamples.Text = _module.Samples.Where(x => x.VirtualSampleType == 0).Count().ToString() + " samples - " + _chunks[0].Length + " bytes (" + ((int)((_chunks[0].Length / (double)0x4D7F) * 100)).ToString() + "%)";
-                    lblMusicData.Text = _module.Patterns.Where(x => x.Pointer < _chunks[2].Offset).Count().ToString() + " patterns - " + _chunks[3].Length + " bytes (" + ((int)((_chunks[3].Length / (double)0x13D8) * 100)).ToString() + "%)";
+                    sampleSize = (0xFF8F - _chunks[0].Offset);
+                    lblInstruments.Text = _module.Instruments.Count.ToString() + " instruments - " + _chunks[2].Length + " bytes (" + ((int)((_chunks[2].Length / (double)instrumentSize) * 100)).ToString() + "%)";
+                    lblSamplesHeaders.Text = _module.Samples.Where(x => x.VirtualSampleType == 0).Count().ToString() + " headers - " + _chunks[1].Length + " bytes (" + ((int)((_chunks[1].Length / (double)sampleHeaderSize) * 100)).ToString() + "%)";
+                    lblSamples.Text = _module.Samples.Where(x => x.VirtualSampleType == 0).Count().ToString() + " samples - " + _chunks[0].Length + " bytes (" + ((int)((_chunks[0].Length / (double)sampleSize) * 100)).ToString() + "%)";
+                    lblMusicData.Text = _module.Patterns.Where(x => x.Pointer < _chunks[2].Offset).Count().ToString() + " patterns - " + _chunks[3].Length + " bytes (" + ((int)((_chunks[3].Length / (double)musicDataSize) * 100)).ToString() + "%)";
                     if (_chunks.Count > 4)
                     {
                         lblExtraMusicData.Text = _module.Patterns.Where(x => x.Pointer > _chunks[2].Offset).Count().ToString() + " extra patterns - " + _chunks[4].Length + " bytes (" + ((int)((_chunks[4].Length / (double)(0xFF8f - _chunks[4].Offset)) * 100)).ToString() + "%)";
@@ -129,10 +135,11 @@ namespace mITroid
                 }
                 else
                 {
-                    lblInstruments.Text = _module.Instruments.Count.ToString() + " instruments - " + _chunks[3].Length + " bytes (" + ((int)((_chunks[3].Length / (double)0x52) * 100)).ToString() + "%)";
-                    lblSamplesHeaders.Text = _module.Samples.Where(x => x.VirtualSampleType == 0).Count().ToString() + " headers - " + _chunks[2].Length + " bytes (" + ((int)((_chunks[2].Length / (double)0x9C) * 100)).ToString() + "%)";
-                    lblSamples.Text = _module.Samples.Where(x => x.VirtualSampleType == 0).Count().ToString() + " samples - " + _chunks[1].Length + " bytes (" + ((int)((_chunks[1].Length / (double)0x3460) * 100)).ToString() + "%)";
-                    lblMusicData.Text = _module.Patterns.Where(x => x.Pointer < _chunks[3].Offset).Count().ToString() + " patterns - " + _chunks[4].Length + " bytes (" + ((int)((_chunks[4].Length / (double)0x1300) * 100)).ToString() + "%)";
+                    sampleSize = (0xEEFF - _chunks[1].Offset);
+                    lblInstruments.Text = _module.Instruments.Count.ToString() + " instruments - " + _chunks[3].Length + " bytes (" + ((int)((_chunks[3].Length / (double)instrumentSize) * 100)).ToString() + "%)";
+                    lblSamplesHeaders.Text = _module.Samples.Where(x => x.VirtualSampleType == 0).Count().ToString() + " headers - " + _chunks[2].Length + " bytes (" + ((int)((_chunks[2].Length / (double)sampleHeaderSize) * 100)).ToString() + "%)";
+                    lblSamples.Text = _module.Samples.Where(x => x.VirtualSampleType == 0).Count().ToString() + " samples - " + _chunks[1].Length + " bytes (" + ((int)((_chunks[1].Length / (double)sampleSize) * 100)).ToString() + "%)";
+                    lblMusicData.Text = _module.Patterns.Where(x => x.Pointer < _chunks[3].Offset).Count().ToString() + " patterns - " + _chunks[4].Length + " bytes (" + ((int)((_chunks[4].Length / (double)musicDataSize) * 100)).ToString() + "%)";
                     if (_chunks.Count > 5)
                     {
                         lblExtraMusicData.Text = _module.Patterns.Where(x => x.Pointer > _chunks[3].Offset).Count().ToString() + " extra patterns - " + _chunks[5].Length + " bytes (" + ((int)((_chunks[5].Length / (double)(0xEEFF - _chunks[5].Offset)) * 100)).ToString() + "%)";

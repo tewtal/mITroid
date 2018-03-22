@@ -62,6 +62,7 @@
             this.label2 = new System.Windows.Forms.Label();
             this.button2 = new System.Windows.Forms.Button();
             this.button3 = new System.Windows.Forms.Button();
+            this.chkOverwrite = new System.Windows.Forms.CheckBox();
             this.groupBox1.SuspendLayout();
             this.groupBox5.SuspendLayout();
             this.groupBox4.SuspendLayout();
@@ -72,7 +73,7 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(206, 271);
+            this.button1.Location = new System.Drawing.Point(205, 288);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(153, 32);
             this.button1.TabIndex = 0;
@@ -82,6 +83,7 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.chkOverwrite);
             this.groupBox1.Controls.Add(this.groupBox5);
             this.groupBox1.Controls.Add(this.groupBox4);
             this.groupBox1.Controls.Add(this.groupBox3);
@@ -91,7 +93,7 @@
             this.groupBox1.Controls.Add(this.chkTreble);
             this.groupBox1.Location = new System.Drawing.Point(12, 12);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(551, 241);
+            this.groupBox1.Size = new System.Drawing.Size(551, 270);
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Options";
@@ -100,7 +102,7 @@
             // 
             this.groupBox5.Controls.Add(this.radioOldADSR);
             this.groupBox5.Controls.Add(this.radioNewADSR);
-            this.groupBox5.Location = new System.Drawing.Point(428, 155);
+            this.groupBox5.Location = new System.Drawing.Point(428, 189);
             this.groupBox5.Name = "groupBox5";
             this.groupBox5.Size = new System.Drawing.Size(117, 74);
             this.groupBox5.TabIndex = 8;
@@ -133,7 +135,7 @@
             // 
             this.groupBox4.Controls.Add(this.chkPatchPatternOff);
             this.groupBox4.Controls.Add(this.chkPatchNoteOff);
-            this.groupBox4.Location = new System.Drawing.Point(7, 155);
+            this.groupBox4.Location = new System.Drawing.Point(7, 189);
             this.groupBox4.Name = "groupBox4";
             this.groupBox4.Size = new System.Drawing.Size(415, 74);
             this.groupBox4.TabIndex = 7;
@@ -167,7 +169,7 @@
             this.groupBox3.Controls.Add(this.label8);
             this.groupBox3.Controls.Add(this.radio2x);
             this.groupBox3.Controls.Add(this.radio1x);
-            this.groupBox3.Location = new System.Drawing.Point(7, 69);
+            this.groupBox3.Location = new System.Drawing.Point(7, 103);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Size = new System.Drawing.Size(415, 80);
             this.groupBox3.TabIndex = 6;
@@ -229,7 +231,7 @@
             // 
             this.Game.Controls.Add(this.radioALTTP);
             this.Game.Controls.Add(this.radioSM);
-            this.Game.Location = new System.Drawing.Point(428, 69);
+            this.Game.Location = new System.Drawing.Point(428, 103);
             this.Game.Name = "Game";
             this.Game.Size = new System.Drawing.Size(117, 80);
             this.Game.TabIndex = 5;
@@ -300,7 +302,7 @@
             this.groupBox2.Controls.Add(this.label4);
             this.groupBox2.Controls.Add(this.label3);
             this.groupBox2.Controls.Add(this.label2);
-            this.groupBox2.Location = new System.Drawing.Point(12, 309);
+            this.groupBox2.Location = new System.Drawing.Point(10, 326);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(551, 146);
             this.groupBox2.TabIndex = 2;
@@ -423,6 +425,16 @@
             this.button3.UseVisualStyleBackColor = true;
             this.button3.Click += new System.EventHandler(this.button3_Click);
             // 
+            // chkOverwrite
+            // 
+            this.chkOverwrite.AutoSize = true;
+            this.chkOverwrite.Location = new System.Drawing.Point(8, 74);
+            this.chkOverwrite.Name = "chkOverwrite";
+            this.chkOverwrite.Size = new System.Drawing.Size(231, 17);
+            this.chkOverwrite.TabIndex = 9;
+            this.chkOverwrite.Text = "Overwrite default samples/instruments/data";
+            this.chkOverwrite.UseVisualStyleBackColor = true;
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -488,6 +500,7 @@
         private System.Windows.Forms.GroupBox groupBox5;
         private System.Windows.Forms.RadioButton radioOldADSR;
         private System.Windows.Forms.RadioButton radioNewADSR;
+        private System.Windows.Forms.CheckBox chkOverwrite;
     }
 }
 

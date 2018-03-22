@@ -136,7 +136,7 @@ namespace mITroid.NSPC
         public Dictionary<int,int> SampleIndexMap { get; set; }
         public Dictionary<int,int> InstrumentIndexMap { get; set; }
 
-        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed, bool newAdsr, Game game)
+        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed, bool newAdsr, Game game, bool overwriteDefault)
         {
             EngineSpeed = engineSpeed;
             Name = itModule.Name;
@@ -154,23 +154,50 @@ namespace mITroid.NSPC
             /* Set SM standard values */
             if (Game == Game.SM)
             {
-                SampleHeaderOffset = 0x6d60;
-                InstrumentOffset = 0x6c90;
-                PatternOffset = 0x5828;
-                PatternEnd = 0x6c00;
-                SampleOffset = 0xb210;
-                SampleIndexOffset = 0x18;
-                InstrumentIndexOffset = 0x18;
+                if (overwriteDefault)
+                {
+                    SampleHeaderOffset = 0x6d00;
+                    InstrumentOffset = 0x6c00;
+                    PatternOffset = 0x5828;
+                    PatternEnd = 0x6c00;
+                    SampleOffset = 0x6e00;
+                    SampleIndexOffset = 0x00;
+                    InstrumentIndexOffset = 0x00;
+                }
+                else
+                {
+                    SampleHeaderOffset = 0x6d60;
+                    InstrumentOffset = 0x6c90;
+                    PatternOffset = 0x5828;
+                    PatternEnd = 0x6c00;
+                    SampleOffset = 0xb210;
+                    SampleIndexOffset = 0x18;
+                    InstrumentIndexOffset = 0x18;
+
+                }
             }
             else if (Game == Game.ALTTP)
             {
-                SampleHeaderOffset = 0x3c64;
-                InstrumentOffset = 0x3dae;
-                SampleOffset = 0xbaa0;
-                PatternOffset = 0x2900;
-                PatternEnd = 0x3c00;
-                SampleIndexOffset = 0x19;
-                InstrumentIndexOffset = 0x1d;
+                if (overwriteDefault)
+                {
+                    SampleHeaderOffset = 0x3c00;
+                    InstrumentOffset = 0x3d00;
+                    SampleOffset = 0x4000;
+                    PatternOffset = 0x2900;
+                    PatternEnd = 0x3c00;
+                    SampleIndexOffset = 0x00;
+                    InstrumentIndexOffset = 0x00;
+                }
+                else
+                {
+                    SampleHeaderOffset = 0x3c64;
+                    InstrumentOffset = 0x3dae;
+                    SampleOffset = 0xbaa0;
+                    PatternOffset = 0x2900;
+                    PatternEnd = 0x3c00;
+                    SampleIndexOffset = 0x19;
+                    InstrumentIndexOffset = 0x1d;
+                }
             }
 
             Track.Memory = new EffectMemory[8];
