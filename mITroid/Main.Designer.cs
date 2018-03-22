@@ -235,7 +235,6 @@
             this.Game.TabIndex = 5;
             this.Game.TabStop = false;
             this.Game.Text = "Game";
-            this.Game.Visible = false;
             // 
             // radioALTTP
             // 
@@ -435,7 +434,8 @@
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.button1);
             this.Name = "Main";
-            this.Text = "mITroid Music Converter v0.98.2";
+            this.Text = "mITroid Music Converter v0.99";
+            this.Load += new System.EventHandler(this.Main_Load);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             this.groupBox5.ResumeLayout(false);

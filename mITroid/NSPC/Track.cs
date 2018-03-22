@@ -401,7 +401,16 @@ namespace mITroid.NSPC
                     if (instrument != iEvent.Value)
                     {
                         byteList.Add((byte)Effect.Instrument);
-                        nI = module.Instruments[iEvent.Value];
+
+                        try
+                        {
+                            nI = module.Instruments[iEvent.Value];
+                        }
+                        catch
+                        {
+                            nI = null;
+                        }
+
                         if (nI != null)
                         {
                             byteList.Add((byte)nI.InstrumentIndex);
@@ -603,9 +612,9 @@ namespace mITroid.NSPC
 
                                     if (vEvent == null)
                                     {
-                                        if (volume != nI.DefaultVolume)
+                                        if (volume != lastnotevol)
                                         {
-                                            volume = nI.DefaultVolume;
+                                            volume = lastnotevol;
                                             effectList.Add((byte)Effect.VolumeSlide);
                                             effectList.Add((byte)0x01);
                                             effectList.Add(Vol(volume, nI, module));
@@ -1010,7 +1019,16 @@ namespace mITroid.NSPC
                             patternLength += noteLength;
                             byteList.Add(0xC8);
                         }
+
+                        lastnote = nEvent.Value;
+                        lastnotevol = volume;
                         nEvent.Processed = true;
+
+                        if (portamento == 1)
+                        {
+                            byteList.Add((byte)Effect.PortamentoOff);
+                            portamento = 0;
+                        }
                     }
                     else
                     {
@@ -1032,7 +1050,7 @@ namespace mITroid.NSPC
                                     {
                                         byteList.Add((byte)Effect.Volume);
                                         byteList.Add(Vol(nI.DefaultVolume, nI, module));
-                                        volume = nI.DefaultVolume;
+                                        volume = nI.DefaultVolume;  
                                     }
                                 }
                                 else
@@ -1069,13 +1087,14 @@ namespace mITroid.NSPC
                             byteList.Add((byte)noteLength);
                         }
 
+
                         patternLength += noteLength;
                         byteList.Add((byte)nEvent.Value);
                         lastnote = nEvent.Value;
                         lastnotevol = volume;
                         nEvent.Processed = true;
 
-                        if(portamento == 1)
+                        if (portamento == 1)
                         {
                             byteList.Add((byte)Effect.PortamentoOff);
                             portamento = 0;
@@ -1096,6 +1115,24 @@ namespace mITroid.NSPC
                     }
                     patternLength += noteLength;
 
+                    bool preEffect = false;
+                    if (effectList.Count > 0)
+                    {
+                        switch ((Effect)effectList[0])
+                        {
+                            case Effect.VolumeSlide:
+                            case Effect.VibratoOff:
+                            case Effect.TremoloOff:
+                                preEffect = true;
+                                break;
+                        }
+                    }
+
+                    if(effectList.Count > 0 && preEffect == true)
+                    {
+                        byteList.AddRange(effectList);
+                    }
+
                     if (iEvent == null || eEvent != null && ((Effect)eEvent.Value) == Effect.NotePortamento)
                     {
                         byteList.Add(0xC8);
@@ -1106,7 +1143,20 @@ namespace mITroid.NSPC
                     }
 
                     /* If we're not on a note, apply effects after the rest to get proper timing on effects */
-                    byteList.AddRange(effectList);
+                    if (effectList.Count > 0 && preEffect == false)
+                    {
+                        byteList.AddRange(effectList);
+                    }
+
+                    if(effectList.Count > 0 && preEffect == true && (Effect)effectList[0] == Effect.VibratoOff)
+                    {
+                        effectList = new List<byte>();
+                        effectList.Add((byte)Effect.NotePortamento);
+                        effectList.Add((byte)0x00);
+                        effectList.Add((byte)1);
+                        effectList.Add((byte)lastnote);
+                        byteList.AddRange(effectList);
+                    }
                 }
 
                 row += ((noteLength + notedelay) / module.CurrentSpeed) - 1;

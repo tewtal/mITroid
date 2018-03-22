@@ -36,7 +36,7 @@ namespace mITroid.NSPC
             return patchCode.ToArray();
         }
 
-        public static List<Chunk> GetPatchChunks(List<Patch> patches)
+        public static List<Chunk> GetPatchChunks(List<Patch> patches, Game game)
         {
             var chunks = new List<Chunk>();
 
@@ -57,10 +57,34 @@ namespace mITroid.NSPC
             patchCode.Add(0xC5);
             patchCode.Add(0xF4);
             patchCode.Add(0x00);
-            patchCode.Add(0x6F);
 
-            chunks.Add(new Chunk() { Data = new byte[] { 0x3F, 0xF0, 0x56 }, Length = 3, Offset = 0x1E8B });
-            chunks.Add(new Chunk() { Data = patchCode.ToArray(), Length = patchCode.Count(), Offset = 0x56F0 });
+            if (game == Game.ALTTP)
+            {
+                patchCode.Add(0x8F);
+                patchCode.Add(0x6D);
+                patchCode.Add(0xF2);
+
+                patchCode.Add(0x8F);
+                patchCode.Add(0xC0);
+                patchCode.Add(0xF3);
+
+                patchCode.Add(0x6F);
+            }
+            else
+            {
+                patchCode.Add(0x6F);
+            }
+
+            if (game == Game.SM)
+            {
+                chunks.Add(new Chunk() { Data = new byte[] { 0x3F, 0xF0, 0x56, 0x00, 0x00 }, Length = 5, Offset = 0x1E8B });
+                chunks.Add(new Chunk() { Data = patchCode.ToArray(), Length = patchCode.Count(), Offset = 0x56F0 });
+            }
+            else
+            {
+                chunks.Add(new Chunk() { Data = new byte[] { 0x3F, 0x80, 0x3f, 0x00, 0x00 }, Length = 5, Offset = 0x11E6 });
+                chunks.Add(new Chunk() { Data = patchCode.ToArray(), Length = patchCode.Count(), Offset = 0x3f80 });
+            }
 
             return chunks;
         }
@@ -100,6 +124,7 @@ namespace mITroid.NSPC
         public int SampleOffset { get; set; }
         public int SampleIndexOffset { get; set; }
         public int InstrumentIndexOffset { get; set; }
+        public int PatternEnd { get; set; }
 
         public decimal ResampleFactor { get; set; }
         public bool EnhanceTreble { get; set; }
@@ -111,7 +136,7 @@ namespace mITroid.NSPC
         public Dictionary<int,int> SampleIndexMap { get; set; }
         public Dictionary<int,int> InstrumentIndexMap { get; set; }
 
-        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed, bool newAdsr)
+        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed, bool newAdsr, Game game)
         {
             EngineSpeed = engineSpeed;
             Name = itModule.Name;
@@ -120,7 +145,7 @@ namespace mITroid.NSPC
             InitialSpeed = itModule.InitialSpeed * EngineSpeed;
             LoopSequence = itModule.LoopSequence;
             UseNewADSR = newAdsr;
-            Game = Game.SM;
+            Game = game;
             ChannelVolume = new int[] { 64, 64, 64, 64, 64, 64, 64, 64 };
 
             SampleIndexMap = new Dictionary<int, int>();
@@ -132,18 +157,20 @@ namespace mITroid.NSPC
                 SampleHeaderOffset = 0x6d60;
                 InstrumentOffset = 0x6c90;
                 PatternOffset = 0x5828;
+                PatternEnd = 0x6c00;
                 SampleOffset = 0xb210;
                 SampleIndexOffset = 0x18;
                 InstrumentIndexOffset = 0x18;
             }
             else if (Game == Game.ALTTP)
             {
-                SampleHeaderOffset = 0x3c00;
-                InstrumentOffset = 0x3d00;
-                SampleOffset = 0x4000;
-                PatternOffset = 0xD000;
-                SampleIndexOffset = 0x00;
-                InstrumentIndexOffset = 0x00;
+                SampleHeaderOffset = 0x3c64;
+                InstrumentOffset = 0x3dae;
+                SampleOffset = 0xbaa0;
+                PatternOffset = 0x2900;
+                PatternEnd = 0x3c00;
+                SampleIndexOffset = 0x19;
+                InstrumentIndexOffset = 0x1d;
             }
 
             Track.Memory = new EffectMemory[8];
@@ -360,7 +387,7 @@ namespace mITroid.NSPC
                     continue;
                 }
 
-                if(curOffset > (InstrumentOffset - 0x90) && curOffset < sampleChunk.Offset)
+                if(curOffset >= PatternEnd && curOffset < sampleChunk.Offset)
                 {
                     /* out of space, allocate more after samples if possible */
                     curOffset = sampleChunk.Offset + sampleChunk.Length;
@@ -401,7 +428,7 @@ namespace mITroid.NSPC
                         bw.Write((UInt16)_patterns[seq.Pattern].Pointer);
                     }
                     bw.Write((UInt16)0x00FF);
-                    bw.Write((UInt16)(0x582C + (2 * LoopSequence)));
+                    bw.Write((UInt16)((PatternOffset + 4) + (2 * LoopSequence)));
 
                     /* Write setup pattern */
                     for(int i = 0; i < 8; i++)
