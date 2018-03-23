@@ -118,10 +118,10 @@ namespace mITroid.IT
                     {
                         int volume = file.ReadByte();
 
-                        if (volume <= 64)
-                        {
+                        //if (volume <= 64)
+                        //{
                             row.Volume = volume;
-                        }
+                        //}
 
                         _channels[curChan].LastVolume = volume;
                     }

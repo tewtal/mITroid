@@ -376,63 +376,74 @@ namespace mITroid.NSPC
             int duplicateRows = 0;
             int chunkEnd = 0;
             curOffset = patternDataOffset;
-            foreach (var p in _patterns)
-            {
-                p.Pointer = curOffset;
-                curOffset += 16;
-                foreach (var t in p.Tracks)
+
+            //var usedPatterns = new List<int>();
+            //foreach (var s in _sequences)
+            //{
+            //    if (usedPatterns.Contains(s.Pattern))
+            //        continue;
+
+            //    var p = _patterns[s.Pattern];
+            //    usedPatterns.Add(s.Pattern);
+
+                foreach (var p in _patterns)
                 {
-                    t.GenerateData(this);
-                    if (t.Data.Count() > 0)
+                    p.Pointer = curOffset;
+                    curOffset += 16;
+                    foreach (var t in p.Tracks)
                     {
-                        /* Check if this track is a duplicate of a previous track */
-                        foreach(var pp in _patterns)
+                        t.GenerateData(this);
+                        if (t.Data.Count() > 0)
                         {
-                            foreach(var tt in pp.Tracks)
+                            /* Check if this track is a duplicate of a previous track */
+                            foreach (var pp in _patterns)
                             {
-                                if(tt.Pointer != 0)
+                                foreach (var tt in pp.Tracks)
                                 {
-                                    if (t.Events.Count == tt.Events.Count && t.Data.SequenceEqual(tt.Data))
+                                    if (tt.Pointer != 0)
                                     {
-                                        t.Pointer = tt.Pointer;
-                                        t.Data = new byte[0];
-                                        duplicateRows++;
-                                        goto next;
+                                        if (t.Events.Count == tt.Events.Count && t.Data.SequenceEqual(tt.Data))
+                                        {
+                                            t.Pointer = tt.Pointer;
+                                            t.Data = new byte[0];
+                                            duplicateRows++;
+                                            goto next;
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        t.Pointer = curOffset;
-                        curOffset += t.Data.Length;
-                    }
-                    else
-                    {
-                        t.Pointer = 0;
-                    }
-                    next:
-                    continue;
-                }
-
-                if(curOffset >= PatternEnd && curOffset < sampleChunk.Offset)
-                {
-                    /* out of space, allocate more after samples if possible */
-                    curOffset = sampleChunk.Offset + sampleChunk.Length;
-
-                    chunkEnd = p.Pointer;
-
-                    /* reallocate the current pattern */
-                    p.Pointer = curOffset;
-                    curOffset += 16;
-                    foreach(var t in p.Tracks)
-                    {
-                        if (t.Data.Length > 0)
-                        {
                             t.Pointer = curOffset;
                             curOffset += t.Data.Length;
                         }
+                        else
+                        {
+                            t.Pointer = 0;
+                        }
+                        next:
+                        continue;
                     }
-                }
+
+                    if (curOffset >= PatternEnd && curOffset < (sampleChunk.Offset + sampleChunk.Length))
+                    {
+                        /* out of space, allocate more after samples if possible */
+                        curOffset = sampleChunk.Offset + sampleChunk.Length;
+
+                        chunkEnd = p.Pointer;
+
+                        /* reallocate the current pattern */
+                        p.Pointer = curOffset;
+                        curOffset += 16;
+                        foreach (var t in p.Tracks)
+                        {
+                            if (t.Data.Length > 0)
+                            {
+                                t.Pointer = curOffset;
+                                curOffset += t.Data.Length;
+                            }
+                        }
+                    }
+                //}
             }
 
             if (chunkEnd == 0)

@@ -23,7 +23,8 @@ namespace mITroid.NSPC
         Tempo = 'T',
         Pan = 'X',
         VolumeSlide = 'D',
-        VolumeSlide2 = 'K',
+        VolumeSlideVibrato = 'K',
+        VolumeSlidePortamento = 'L',
         NotePortamento = 'G',
         Special = 'S',
         Zpecial = 'Z',
@@ -78,8 +79,10 @@ namespace mITroid.NSPC
             Row = 0;
         }
 
-        public static Event CreateEffect(IT.Row itRow)
+        public static List<Event> CreateEffect(IT.Row itRow)
         {
+            List<Event> events = new List<Event>();
+
             var ev = new Event
             {
                 Row = itRow.RowNum,
@@ -140,10 +143,36 @@ namespace mITroid.NSPC
                         ev.Parameters = new List<int>() { 1, itRow.Value };
                         break;
                     }
-                case ITEffect.VolumeSlide2:
+                case ITEffect.VolumeSlideVibrato:
                     {
                         ev.Value = (int)Effect.VolumeSlide;
                         ev.Parameters = new List<int>() { 1, itRow.Value };
+
+                        var ev2 = new Event
+                        {
+                            Row = itRow.RowNum,
+                            Type = EventType.Effect,
+                            Value = (int)Effect.Vibrato,
+                            Parameters = new List<int>() { 0, 0 }
+                        };
+
+                        events.Add(ev2);
+                        break;
+                    }
+                case ITEffect.VolumeSlidePortamento:
+                    {
+                        ev.Value = (int)Effect.VolumeSlide;
+                        ev.Parameters = new List<int>() { 1, itRow.Value };
+
+                        var ev2 = new Event
+                        {
+                            Row = itRow.RowNum,
+                            Type = EventType.Effect,
+                            Value = (int)Effect.NotePortamento,
+                            Parameters = new List<int>() { 0 }
+                        };
+
+                        events.Add(ev2);
                         break;
                     }
                 case ITEffect.PortamentoDown:
@@ -180,7 +209,8 @@ namespace mITroid.NSPC
                     }
             }
 
-            return ev;
+            events.Add(ev);
+            return events;
         }
 
         public static int ConvertVolume(int val)
@@ -216,18 +246,23 @@ namespace mITroid.NSPC
     class EffectMemory
     {
         public int Portamento { get; set; }
-        public int VibratoRate { get; set; }
-        public int VibratoDepth { get; set; }
-        public int NotePortamento { get; set; }
         public int InstrumentIndex { get; set; }
         public int NoteVolume { get; set; }
         public int Volume { get; set; }
+        public int VolumeSlide { get; set; }
+        public int VibratoRate { get; set; }
+        public int VibratoDepth { get; set; }
+        public int TremoloRate { get; set; }
+        public int TremoloDepth { get; set; }
+
+        public int Note { get; set; }
 
         public EffectMemory()
         {
             Volume = -1;
             NoteVolume = -1;
             InstrumentIndex = -1;
+            Note = -1;
         }
     }
 
@@ -290,22 +325,133 @@ namespace mITroid.NSPC
                         Row = row.RowNum
                     };
                     Events.Add(instrumentEvent);
+
+                    if(row.Note == -1)
+                    {
+                        var noteEvent = new Event
+                        {
+                            Type = EventType.Note,
+                            Row = row.RowNum,
+                            Value = -1
+                        };
+                        Events.Add(noteEvent);
+                    }
                 }
 
                 if(row.Volume != -1)
                 {
-                    var volumeEvent = new Event
+                    if (row.Volume <= 64)
                     {
-                        Type = EventType.Volume,
-                        Value = row.Volume, //Event.ConvertVolume(row.Volume),
-                        Row = row.RowNum
-                    };
-                    Events.Add(volumeEvent);
+                        var volumeEvent = new Event
+                        {
+                            Type = EventType.Volume,
+                            Value = row.Volume, //Event.ConvertVolume(row.Volume),
+                            Row = row.RowNum
+                        };
+                        Events.Add(volumeEvent);
+                    }
+                    else
+                    {
+                        if(row.Volume >= 128 && row.Volume <= 192)
+                        {
+                            int panValue = row.Volume == 128 ? 0 : ((row.Volume - 128) * 4) - 1;
+                            var ev = new Event
+                            {
+                                Row = row.RowNum,
+                                Type = EventType.Effect,
+                                Value = (int)Effect.Pan,
+                                Parameters = new List<int>() { (int)(0x14 - (panValue / 12.8)) }
+                            };
+
+                            Events.Add(ev);
+                        }
+                        else if(row.Volume >= 65 && row.Volume <= 104)
+                        {
+                            int volValue = 0;
+
+                            if(row.Volume <= 74)
+                            {
+                                volValue = ((row.Volume - 65) << 4) + 0xF;
+                            }
+                            else if (row.Volume >= 75 && row.Volume <= 84)
+                            {
+                                volValue = (row.Volume - 75) + 0xF0;
+                            }
+                            else if (row.Volume >= 85 && row.Volume <= 94)
+                            {
+                                volValue = ((row.Volume - 85) << 4);
+                            }
+                            else if (row.Volume >= 95 && row.Volume <= 104)
+                            {
+                                volValue = (row.Volume - 95);
+                            }
+
+                            var ev = new Event
+                            {
+                                Row = row.RowNum,
+                                Type = EventType.Effect,
+                                Value = (int)Effect.VolumeSlide,
+                                Parameters = new List<int>() { 1, volValue }
+                            };
+
+                            Events.Add(ev);
+                        }
+                        else if(row.Volume >= 105 && row.Volume <= 124)
+                        {
+                            int portValue = 0;
+
+                            if(row.Volume <= 114)
+                            {
+                                portValue = (row.Volume - 105) * 4;
+                            }
+                            else
+                            {
+                                portValue = (row.Volume - 115) * 4;
+                            }
+
+                            var ev = new Event
+                            {
+                                Row = row.RowNum,
+                                Type = EventType.Effect,
+                                Value = (row.Volume <= 114) ? (int)Effect.PortamentoDown : (int)Effect.PortamentoUp,
+                                Parameters = new List<int>() { portValue }
+                            };
+
+                            Events.Add(ev);
+                        }
+                        else if(row.Volume >= 193 && row.Volume <= 202)
+                        {
+                            var portTable = new int[] { 0,  1, 4, 8, 16, 32, 64, 96, 128, 255 };
+                            int portValue = portTable[row.Volume - 193];
+
+                            var ev = new Event
+                            {
+                                Row = row.RowNum,
+                                Type = EventType.Effect,
+                                Value = (int)Effect.NotePortamento,
+                                Parameters = new List<int>() { portValue }
+                            };
+
+                            Events.Add(ev);
+                        }
+                        else if(row.Volume >= 203)
+                        {
+                            var ev = new Event
+                            {
+                                Row = row.RowNum,
+                                Type = EventType.Effect,
+                                Value = (int)Effect.Vibrato,
+                                Parameters = new List<int>() { 0, (row.Volume - 203) * 16 }
+                            };
+
+                            Events.Add(ev);
+                        }
+                    }
                 }
 
                 if(row.Command != -1)
                 {                    
-                    Events.Add(Event.CreateEffect(row));
+                    Events.AddRange(Event.CreateEffect(row));
                 }
             }
         }
@@ -315,7 +461,6 @@ namespace mITroid.NSPC
             int v = 0;
             if (i != null)
             {
-                //return (byte)(((Event.ConvertVolume(vol) * Event.ConvertVolume(i.SampleVolume) * (Event.ConvertVolume(i.InstrumentVolume/2)*2) * mod.ChannelVolume[Channel]) / 131072) - 1);
                 v = (((vol * i.SampleVolume * i.InstrumentVolume * mod.ChannelVolume[Channel]) / 131072) - 1);
             }
             else
@@ -323,10 +468,8 @@ namespace mITroid.NSPC
                 v = (((vol * 64 * 128 * mod.ChannelVolume[Channel]) / 131072) - 1);
             }
 
-            //return v == 0 ? (byte)0 : (byte)Math.Round((46 * Math.Log(v)), 0);
-            //return v == 0 ? (byte)0 : (byte)Math.Floor((32 * Math.Log(v, 2)));
             return v < 1 ? (byte)0 : (byte)Math.Round(57.0 * Math.Log((v / 12.0) + 1, 2), 0);
-            //return (v == 0 ? (byte)0 : (byte)(63 + (v * 0.75)));
+            //return v < 1 ? (byte)0 : (byte)Math.Round(36 * Math.Log((v / 2) + 1, 2), 0);
         }
 
         /* This function takes a track and encodes it as the N-SPC output stream */
@@ -357,6 +500,11 @@ namespace mITroid.NSPC
 
             lastnotevol = Memory[Channel].NoteVolume;
             volume = Memory[Channel].Volume;
+
+            if (Memory[Channel].Note >= 0)
+            {
+                lastnote = Memory[Channel].Note;
+            }
 
             if (Events.Count == 0)
             {
@@ -394,11 +542,19 @@ namespace mITroid.NSPC
                 var iEvent = Events.Where(x => x.Row == row && x.Type == EventType.Instrument && x.Processed == false).FirstOrDefault();
                 var nEvent = Events.Where(x => x.Row == row && x.Type == EventType.Note && x.Processed == false).FirstOrDefault();
                 var vEvent = Events.Where(x => x.Row == row && x.Type == EventType.Volume && x.Processed == false).FirstOrDefault();
-                var eEvent = Events.Where(x => x.Row == row && x.Type == EventType.Effect && x.Processed == false).FirstOrDefault();
+                var eEvents = Events.Where(x => x.Row == row && x.Type == EventType.Effect && x.Processed == false).ToList();
+
+                if(nEvent != null)
+                {
+                    if (nEvent.Value == -1 && lastnote >= 0)
+                    {
+                        nEvent.Value = lastnote;
+                    }
+                }
 
                 if (iEvent != null)
                 {
-                    if (instrument != iEvent.Value)
+                    if (instrument != iEvent.Value || nI == null)
                     {
                         byteList.Add((byte)Effect.Instrument);
 
@@ -431,21 +587,24 @@ namespace mITroid.NSPC
                     {
                         if (vEvent.Value != volume)
                         {
-                            if (volumeSlide == 1)
+                            if (eEvents.Count == 0 || eEvents.Any(x => (Effect)x.Value == Effect.NotePortamento) == false)
                             {
-                                byteList.Add((byte)Effect.VolumeSlide);
-                                byteList.Add((byte)0x01);
-                                //byteList.Add((byte)vEvent.Value);
-                                byteList.Add(Vol(vEvent.Value, nI, module));
-                                vEvent.Processed = true;
-                                volume = vEvent.Value;
-                            }
-                            else
-                            {
-                                byteList.Add((byte)Effect.Volume);
-                                byteList.Add(Vol(vEvent.Value, nI, module));
-                                vEvent.Processed = true;
-                                volume = vEvent.Value;
+                                if (volumeSlide == 1)
+                                {
+                                    byteList.Add((byte)Effect.VolumeSlide);
+                                    byteList.Add((byte)0x01);
+                                    //byteList.Add((byte)vEvent.Value);
+                                    byteList.Add(Vol(vEvent.Value, nI, module));
+                                    vEvent.Processed = true;
+                                    volume = vEvent.Value;
+                                }
+                                else
+                                {
+                                    byteList.Add((byte)Effect.Volume);
+                                    byteList.Add(Vol(vEvent.Value, nI, module));
+                                    vEvent.Processed = true;
+                                    volume = vEvent.Value;
+                                }
                             }
                         }
                     }
@@ -535,109 +694,161 @@ namespace mITroid.NSPC
                     }
                 }
 
+                List<byte> preEffectList = new List<byte>();
                 List<byte> effectList = new List<byte>();
-                if(eEvent != null)
+
+                foreach (var eEvent in eEvents)
                 {
-                    switch((Effect)eEvent.Value)
+                    if (eEvent != null)
                     {
-                        case Effect.Pan:
-                            {
-                                effectList.Add((byte)Effect.Pan);
-                                effectList.Add((byte)0x01);
-                                effectList.Add((byte)eEvent.Parameters[0]);
-                                break;
-                            }
-
-                        case Effect.Tempo:
-                            {
-                                byteList.Add((byte)Effect.Tempo);
-                                byteList.Add((byte)Math.Round(eEvent.Parameters[0] / (4.8 / module.EngineSpeed), 0));
-                                module.CurrentTempo = (int)Math.Round((eEvent.Parameters[0] / (4.8 / module.EngineSpeed)),0);
-                                break;
-                            }
-
-                        case Effect.Speed:
-                            {
-                                int newSpeed = eEvent.Parameters[0] * module.EngineSpeed;
-                                double factor = ((double)newSpeed / (double)module.CurrentSpeed);
-                                int newTempo = (int)Math.Round(((double)module.CurrentTempo / factor));
-                                byteList.Add((byte)Effect.Tempo);
-                                byteList.Add((byte)newTempo);
-                                break;
-                            }
-                        case Effect.Volume:
-                            {
-                                if (eEvent.Parameters[0] != module.ChannelVolume[Channel])
+                        switch ((Effect)eEvent.Value)
+                        {
+                            case Effect.Pan:
                                 {
-                                    module.ChannelVolume[Channel] = eEvent.Parameters[0];
-                                    if (volumeSlide == 1)
-                                    {
-                                        effectList.Add((byte)Effect.VolumeSlide);
-                                        effectList.Add((byte)0x01);
-                                        effectList.Add(Vol(volume, nI, module));
-                                    }
-                                    else
-                                    {
-                                        byteList.Add((byte)Effect.Volume);
-                                        effectList.Add(Vol(volume, nI, module));
-                                    }
+                                    effectList.Add((byte)Effect.Pan);
+                                    effectList.Add((byte)0x01);
+                                    effectList.Add((byte)eEvent.Parameters[0]);
+                                    break;
                                 }
-                                break;
-                            }
-                        case Effect.NotePortamento:
-                            {
-                                if (nEvent != null)
+
+                            case Effect.Tempo:
                                 {
-                                    int val = eEvent.Parameters[0];
-                                    if (val == 0)
-                                    {
-                                        val = Memory[Channel].NotePortamento;
-                                    }
-                                    else
-                                    {
-                                        Memory[Channel].NotePortamento = val;
-                                    }
+                                    byteList.Add((byte)Effect.Tempo);
+                                    byteList.Add((byte)Math.Round(eEvent.Parameters[0] / (4.8 / module.EngineSpeed), 0));
+                                    module.CurrentTempo = (int)Math.Round((eEvent.Parameters[0] / (4.8 / module.EngineSpeed)), 0);
+                                    break;
+                                }
 
-                                    int semitones = Math.Abs(nEvent.Value - lastnote);
-                                    double speed = val * 0.0625;
-                                    double ticks = (int)((semitones / speed) / 2.0);
-                                    int pitch_speed = (int)(ticks * module.InitialSpeed);
-                                    if (pitch_speed < 1)
-                                        pitch_speed = 1;
-
-                                    effectList.Add((byte)Effect.NotePortamento);
-                                    effectList.Add((byte)0x00);
-                                    effectList.Add((byte)pitch_speed);
-                                    effectList.Add((byte)nEvent.Value);
-
-                                    if (vEvent == null)
+                            case Effect.Speed:
+                                {
+                                    int newSpeed = eEvent.Parameters[0] * module.EngineSpeed;
+                                    double factor = ((double)newSpeed / (double)module.CurrentSpeed);
+                                    int newTempo = (int)Math.Round(((double)module.CurrentTempo / factor));
+                                    byteList.Add((byte)Effect.Tempo);
+                                    byteList.Add((byte)newTempo);
+                                    break;
+                                }
+                            case Effect.Volume:
+                                {
+                                    if (eEvent.Parameters[0] != module.ChannelVolume[Channel])
                                     {
-                                        if (volume != lastnotevol)
+                                        module.ChannelVolume[Channel] = eEvent.Parameters[0];
+                                        if (volumeSlide == 1)
                                         {
-                                            volume = lastnotevol;
-                                            effectList.Add((byte)Effect.VolumeSlide);
-                                            effectList.Add((byte)0x01);
-                                            effectList.Add(Vol(volume, nI, module));
-                                            volumeSlide = 0;
+                                            preEffectList.Add((byte)Effect.VolumeSlide);
+                                            preEffectList.Add((byte)0x01);
+                                            preEffectList.Add(Vol(volume, nI, module));
+                                        }
+                                        else
+                                        {
+                                            byteList.Add((byte)Effect.Volume);
+                                            preEffectList.Add(Vol(volume, nI, module));
                                         }
                                     }
-
-                                    /* Scan for future note portamento effects and process them */
-                                    var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
-                                    int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
-                                    for (int search = (row + 1); search < nextNotePos; search++)
+                                    break;
+                                }
+                            case Effect.NotePortamento:
+                                {
+                                    if (nEvent != null)
                                     {
-                                        var vSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.NotePortamento && x.Processed == false).FirstOrDefault();
-                                        if (vSearch != null)
+                                        int val = eEvent.Parameters[0];
+                                        if (val == 0 && Memory[Channel].Portamento >= 0)
                                         {
-                                            if (vSearch.Parameters[0] == val || vSearch.Parameters[0] == 0x00)
+                                            val = Memory[Channel].Portamento;
+                                        }
+                                        else
+                                        {
+                                            Memory[Channel].Portamento = val;
+                                        }
+
+                                        int semitones = Math.Abs(nEvent.Value - lastnote);
+                                        double speed = val * 0.0625;
+                                        double ticks = (int)((semitones / speed) / 2.0);
+                                        int pitch_speed = (int)(ticks * module.CurrentSpeed);
+                                        if (pitch_speed < 1)
+                                            pitch_speed = 1;
+
+                                        if (vEvent == null)
+                                        {
+                                            if (volume != lastnotevol)
                                             {
-                                                vSearch.Processed = true;
+                                                volume = lastnotevol;
+                                                preEffectList.Add((byte)Effect.VolumeSlide);
+                                                preEffectList.Add((byte)0x01);
+                                                preEffectList.Add(Vol(volume, nI, module));
+                                                volumeSlide = 0;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            preEffectList.Add((byte)Effect.VolumeSlide);
+                                            preEffectList.Add((byte)0x01);
+                                            preEffectList.Add(Vol(vEvent.Value, nI, module));
+                                            volumeSlide = 0;
+                                            volume = vEvent.Value;
+                                        }
+
+                                        effectList.Add((byte)Effect.NotePortamento);
+                                        effectList.Add((byte)0x00);
+                                        effectList.Add((byte)pitch_speed);
+                                        effectList.Add((byte)nEvent.Value);
+
+                                        /* Scan for future note portamento effects and process them */
+                                        var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
+                                        int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
+                                        for (int search = (row + 1); search < nextNotePos; search++)
+                                        {
+                                            var vSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.NotePortamento && x.Processed == false).FirstOrDefault();
+                                            if (vSearch != null)
+                                            {
+                                                if (vSearch.Parameters[0] == val || vSearch.Parameters[0] == 0x00)
+                                                {
+                                                    vSearch.Processed = true;
+                                                }
+                                                else
+                                                {
+                                                    break;
+                                                }
                                             }
                                             else
                                             {
                                                 break;
                                             }
+                                        }
+
+                                        lastnote = nEvent.Value;
+                                        nEvent.Processed = true;
+                                        nEvent = null;
+                                    }
+
+                                    break;
+                                }
+                            case Effect.VibratoOff:
+                                {
+                                    preEffectList.Add((byte)Effect.VibratoOff);
+                                    break;
+                                }
+                            case Effect.Tremolo:
+                                {
+                                    if (eEvent.Parameters[0] != 0 || eEvent.Parameters[1] != 0)
+                                    {
+                                        effectList.Add((byte)Effect.Tremolo);
+                                        effectList.Add((byte)0x00);
+                                        effectList.Add((byte)eEvent.Parameters[0]);
+                                        effectList.Add((byte)eEvent.Parameters[1]);
+                                    }
+
+                                    /* Scan for future note vibrato effects and process them */
+                                    var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
+                                    int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
+                                    Event lastSearch = null;
+                                    for (int search = (row + 1); search < nextNotePos; search++)
+                                    {
+                                        var curSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.Tremolo && x.Processed == false).FirstOrDefault();
+                                        if (curSearch != null)
+                                        {
+                                            curSearch.Processed = true;
+                                            lastSearch = curSearch;
                                         }
                                         else
                                         {
@@ -645,209 +856,269 @@ namespace mITroid.NSPC
                                         }
                                     }
 
-                                    lastnote = nEvent.Value;
-                                    nEvent.Processed = true;
-                                    nEvent = null;
-                                }
-
-                                break;
-                            }
-                        case Effect.VibratoOff:
-                            {
-                                effectList.Add((byte)Effect.VibratoOff);
-                                break;
-                            }
-                        case Effect.Tremolo:
-                            {
-                                if (eEvent.Parameters[0] != 0 || eEvent.Parameters[1] != 0)
-                                {
-                                    effectList.Add((byte)Effect.Tremolo);
-                                    effectList.Add((byte)0x00);
-                                    effectList.Add((byte)eEvent.Parameters[0]);
-                                    effectList.Add((byte)eEvent.Parameters[1]);
-                                }
-
-                                /* Scan for future note vibrato effects and process them */
-                                var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
-                                int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
-                                Event lastSearch = null;
-                                for (int search = (row + 1); search < nextNotePos; search++)
-                                {
-                                    var curSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.Tremolo && x.Processed == false).FirstOrDefault();
-                                    if (curSearch != null)
-                                    {
-                                        curSearch.Processed = true;
-                                        lastSearch = curSearch;
-                                    }
-                                    else
-                                    {
-                                        break;
-                                    }
-                                }
-
-                                /* Set the last effect back as processed and change it to a vibrato off, and push it one row further */
-                                if (lastSearch != null)
-                                {
-                                    lastSearch.Processed = false;
-                                    lastSearch.Type = EventType.Effect;
-                                    lastSearch.Value = (int)Effect.TremoloOff;
-                                    lastSearch.Row = lastSearch.Row + 1;
-                                }
-
-                                break;
-                            }
-                        case Effect.TremoloOff:
-                            {
-                                effectList.Add((byte)Effect.TremoloOff);
-                                break;
-                            }
-                        case Effect.VolumeSlide:
-                            {
-                                int val = eEvent.Parameters[1];
-                                int slideDirection = (val < 0x10 ? 0 : 1);
-                                int volumeChange = (slideDirection == 0 ? (val & 0xF) : ((val >> 4) & 0xF));
-                                int volumeChangePerRow = (volumeChange * (module.CurrentSpeed-1));
-                                int targetVolumeChange = (slideDirection == 0 ? -volumeChangePerRow : volumeChangePerRow);
-                                int targetVolumeChangeRows = 1;
-                                var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
-                                int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
-                                for (int search = (row + 1); search < nextNotePos; search++)
-                                {                                   
-                                    var lastSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.VolumeSlide && x.Processed == false).FirstOrDefault();
+                                    /* Set the last effect back as processed and change it to a vibrato off, and push it one row further */
                                     if (lastSearch != null)
                                     {
-                                        lastSearch.Processed = true;
-                                        targetVolumeChange += (slideDirection == 0 ? -volumeChangePerRow : volumeChangePerRow);
-                                        targetVolumeChangeRows += 1;
+                                        lastSearch.Processed = false;
+                                        lastSearch.Type = EventType.Effect;
+                                        lastSearch.Value = (int)Effect.TremoloOff;
+                                        lastSearch.Row = lastSearch.Row + 1;
+                                    }
+
+                                    break;
+                                }
+                            case Effect.TremoloOff:
+                                {
+                                    preEffectList.Add((byte)Effect.TremoloOff);
+                                    break;
+                                }
+                            case Effect.VolumeSlide:
+                                {
+                                    int val = eEvent.Parameters[1];
+                                    if (val == 0)
+                                    {
+                                        val = Memory[Channel].VolumeSlide;
                                     }
                                     else
                                     {
-                                        break;
+                                        Memory[Channel].VolumeSlide = val;
                                     }
 
-                                    if ((targetVolumeChangeRows * module.CurrentSpeed) > 0xFF)
-                                        break;
+                                    int slideDirection, volumeChange, volumeChangePerRow;
 
-                                }
-
-                                int finalVolume = (volume + targetVolumeChange);
-
-                                if (finalVolume < 0)
-                                    finalVolume = 0;
-
-                                if (finalVolume > 0x40)
-                                    finalVolume = 0x40;
-
-                                if (nEvent != null)
-                                {
-                                    novolumechange = 1;
-                                    byteList.Add((byte)Effect.Volume);
-                                    byteList.Add(Vol(nI.DefaultVolume, nI, module));
-                                }
-
-                                effectList.Add((byte)Effect.VolumeSlide);
-                                effectList.Add((byte)((targetVolumeChangeRows * module.CurrentSpeed)));
-                                effectList.Add(Vol(finalVolume, nI, module));
-                                volume = finalVolume;
-                                volumeSlide = 1;
-                                break;
-                            }
-                        case Effect.Special:
-                            {
-                                int sub_cmd = eEvent.Parameters[0];
-                                int sub_val = eEvent.Parameters[1];
-
-                                switch(sub_cmd)
-                                {
-                                    case 0x0D: /* note delay by sub_val ticks */
+                                    if (((val & 0x0F) == 0x0F && (val & 0xF0) != 0) || ((val & 0xF0) == 0xF0 && (val & 0x0F) != 0))
+                                    {
+                                        /* Fine volume slide */
+                                        if ((val & 0xF0) == 0xF0)
                                         {
-                                            notedelay = (sub_val * module.EngineSpeed);
-                                            effectList.Add((byte)notedelay);
-                                            effectList.Add((byte)0xC8);                                           
-                                            break;
+                                            /* Down slide */
+                                            slideDirection = 0;
+                                            volumeChange = val & 0x0F;
                                         }
-                                    case 0x00: /* Special commands */
+                                        else
                                         {
-                                            switch(sub_val)
+                                            slideDirection = 1;
+                                            volumeChange = (val >> 4) & 0x0F;
+                                        }
+                                        volumeChangePerRow = volumeChange;
+                                    }
+                                    else
+                                    {
+                                        /* Regular volume slide */
+                                        if ((val & 0xF0) == 0)
+                                        {
+                                            /* Down slide */
+                                            slideDirection = 0;
+                                            volumeChange = val & 0x0F;
+                                        }
+                                        else
+                                        {
+                                            slideDirection = 1;
+                                            volumeChange = (val >> 4) & 0x0F;
+                                        }
+                                        volumeChangePerRow = (volumeChange * (module.CurrentSpeed - 1));
+                                    }
+
+                                    int targetVolumeChange = (slideDirection == 0 ? -volumeChangePerRow : volumeChangePerRow);
+                                    int targetVolumeChangeRows = 1;
+                                    var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
+                                    int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
+                                    for (int search = (row + 1); search < nextNotePos; search++)
+                                    {
+                                        var lastSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.VolumeSlide && x.Processed == false).FirstOrDefault();
+                                        if (lastSearch != null)
+                                        {
+                                            if (lastSearch.Parameters[1] == 0)
                                             {
-                                                case 0x05:
-                                                    {
-                                                        /* Echo bits / volume */
-                                                        var zEchoBits = Events.Where(x => x.Row == row + 1 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
-                                                        var zVolLeft  = Events.Where(x => x.Row == row + 2 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
-                                                        var zVolRight = Events.Where(x => x.Row == row + 3 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
-
-                                                        if(zEchoBits != null && zVolLeft != null && zVolRight != null)
-                                                        {
-                                                            byteList.Add((byte)0xF5);
-                                                            byteList.Add((byte)zEchoBits.Parameters[0]);
-                                                            byteList.Add((byte)zVolLeft.Parameters[0]);
-                                                            byteList.Add((byte)zVolRight.Parameters[0]);
-
-                                                            zEchoBits.Processed = true;
-                                                            zVolLeft.Processed = true;
-                                                            zVolRight.Processed = true;
-                                                        }
-
-                                                        break;
-                                                    }
-                                                case 0x06:
-                                                    {
-                                                        /* stop echo */
-                                                        byteList.Add((byte)0xF6);
-                                                        break;
-                                                    }
-                                                case 0x07:
-                                                    {
-                                                        /* echo parameters */
-                                                        var zEDL = Events.Where(x => x.Row == row + 1 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
-                                                        var zEFB = Events.Where(x => x.Row == row + 2 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
-                                                        var zFilter = Events.Where(x => x.Row == row + 3 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
-
-                                                        if (zEDL != null && zEFB != null && zFilter != null)
-                                                        {
-                                                            byteList.Add((byte)0xF7);
-                                                            byteList.Add((byte)zEDL.Parameters[0]);
-                                                            byteList.Add((byte)zEFB.Parameters[0]);
-                                                            byteList.Add((byte)zFilter.Parameters[0]);
-
-                                                            zEDL.Processed = true;
-                                                            zEFB.Processed = true;
-                                                            zFilter.Processed = true;
-                                                        }
-                                                        break;
-                                                    }
-                                                case 0x08:
-                                                    {
-                                                        /* echo fade */
-                                                        var zFade = Events.Where(x => x.Row == row + 1 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
-                                                        var zVolLeft = Events.Where(x => x.Row == row + 2 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
-                                                        var zVolRight= Events.Where(x => x.Row == row + 3 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
-
-                                                        if (zFade != null && zVolLeft != null && zVolRight != null)
-                                                        {
-                                                            byteList.Add((byte)0xF8);
-                                                            byteList.Add((byte)zFade.Parameters[0]);
-                                                            byteList.Add((byte)zVolLeft.Parameters[0]);
-                                                            byteList.Add((byte)zVolRight.Parameters[0]);
-
-                                                            zFade.Processed = true;
-                                                            zVolLeft.Processed = true;
-                                                            zVolRight.Processed = true;
-                                                        }
-                                                        break;
-                                                    }
+                                                lastSearch.Processed = true;
+                                                targetVolumeChange += (slideDirection == 0 ? -volumeChangePerRow : volumeChangePerRow);
+                                                targetVolumeChangeRows += 1;
                                             }
+                                            else
+                                            {
+                                                int newVal = lastSearch.Parameters[1];
+
+                                                int newSlideDirection, newVolumeChange, newVolumeChangePerRow;
+
+                                                if (((newVal & 0x0F) == 0x0F && (newVal & 0xF0) != 0) || ((newVal & 0xF0) == 0xF0 && (newVal & 0x0F) != 0))
+                                                {
+                                                    /* Fine volume slide */
+                                                    if ((newVal & 0xF0) == 0xF0)
+                                                    {
+                                                        /* Down slide */
+                                                        newSlideDirection = 0;
+                                                        newVolumeChange = newVal & 0x0F;
+                                                    }
+                                                    else
+                                                    {
+                                                        newSlideDirection = 1;
+                                                        newVolumeChange = (newVal >> 4) & 0x0F;
+                                                    }
+                                                    newVolumeChangePerRow = newVolumeChange;
+                                                }
+                                                else
+                                                {
+                                                    /* Regular volume slide */
+                                                    if ((newVal & 0xF0) == 0)
+                                                    {
+                                                        /* Down slide */
+                                                        newSlideDirection = 0;
+                                                        newVolumeChange = newVal & 0x0F;
+                                                    }
+                                                    else
+                                                    {
+                                                        newSlideDirection = 1;
+                                                        newVolumeChange = (newVal >> 4) & 0x0F;
+                                                    }
+                                                    newVolumeChangePerRow = (newVolumeChange * (module.CurrentSpeed - 1));
+                                                }
+
+                                                if (newSlideDirection != slideDirection)
+                                                {
+                                                    break;
+                                                }
+                                                else
+                                                {
+                                                    volumeChange = newVolumeChange;
+                                                    volumeChangePerRow = newVolumeChangePerRow;
+
+                                                    lastSearch.Processed = true;
+                                                    targetVolumeChange += (slideDirection == 0 ? -volumeChangePerRow : volumeChangePerRow);
+                                                    targetVolumeChangeRows += 1;
+
+                                                    Memory[Channel].VolumeSlide = newVal;
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
                                             break;
                                         }
-                                }
-                                break;
-                            }
-                        default:
-                            break;
-                    }
 
-                    eEvent.Processed = true;
+                                        if ((targetVolumeChangeRows * module.CurrentSpeed) > 0xFF)
+                                            break;
+
+                                    }
+
+                                    int finalVolume = (volume + targetVolumeChange);
+
+                                    if (finalVolume < 0)
+                                        finalVolume = 0;
+
+                                    if (finalVolume > 0x40)
+                                        finalVolume = 0x40;
+
+                                    if (nEvent != null)
+                                    {
+                                        novolumechange = 1;
+                                        byteList.Add((byte)Effect.Volume);
+                                        byteList.Add(Vol(nI.DefaultVolume, nI, module));
+                                    }
+
+                                    preEffectList.Add((byte)Effect.VolumeSlide);
+                                    preEffectList.Add((byte)((targetVolumeChangeRows * module.CurrentSpeed) - 1));
+                                    preEffectList.Add(Vol(finalVolume, nI, module));
+                                    volume = finalVolume;
+                                    //volumeSlide = 1;
+                                    break;
+                                }
+                            case Effect.Special:
+                                {
+                                    int sub_cmd = eEvent.Parameters[0];
+                                    int sub_val = eEvent.Parameters[1];
+
+                                    switch (sub_cmd)
+                                    {
+                                        case 0x0D: /* note delay by sub_val ticks */
+                                            {
+                                                notedelay = (sub_val * module.EngineSpeed);
+                                                effectList.Add((byte)notedelay);
+                                                effectList.Add((byte)0xC8);
+                                                break;
+                                            }
+                                        case 0x00: /* Special commands */
+                                            {
+                                                switch (sub_val)
+                                                {
+                                                    case 0x05:
+                                                        {
+                                                            /* Echo bits / volume */
+                                                            var zEchoBits = Events.Where(x => x.Row == row + 1 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
+                                                            var zVolLeft = Events.Where(x => x.Row == row + 2 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
+                                                            var zVolRight = Events.Where(x => x.Row == row + 3 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
+
+                                                            if (zEchoBits != null && zVolLeft != null && zVolRight != null)
+                                                            {
+                                                                byteList.Add((byte)0xF5);
+                                                                byteList.Add((byte)zEchoBits.Parameters[0]);
+                                                                byteList.Add((byte)zVolLeft.Parameters[0]);
+                                                                byteList.Add((byte)zVolRight.Parameters[0]);
+
+                                                                zEchoBits.Processed = true;
+                                                                zVolLeft.Processed = true;
+                                                                zVolRight.Processed = true;
+                                                            }
+
+                                                            break;
+                                                        }
+                                                    case 0x06:
+                                                        {
+                                                            /* stop echo */
+                                                            byteList.Add((byte)0xF6);
+                                                            break;
+                                                        }
+                                                    case 0x07:
+                                                        {
+                                                            /* echo parameters */
+                                                            var zEDL = Events.Where(x => x.Row == row + 1 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
+                                                            var zEFB = Events.Where(x => x.Row == row + 2 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
+                                                            var zFilter = Events.Where(x => x.Row == row + 3 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
+
+                                                            if (zEDL != null && zEFB != null && zFilter != null)
+                                                            {
+                                                                byteList.Add((byte)0xF7);
+                                                                byteList.Add((byte)zEDL.Parameters[0]);
+                                                                byteList.Add((byte)zEFB.Parameters[0]);
+                                                                byteList.Add((byte)zFilter.Parameters[0]);
+
+                                                                zEDL.Processed = true;
+                                                                zEFB.Processed = true;
+                                                                zFilter.Processed = true;
+                                                            }
+                                                            break;
+                                                        }
+                                                    case 0x08:
+                                                        {
+                                                            /* echo fade */
+                                                            var zFade = Events.Where(x => x.Row == row + 1 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
+                                                            var zVolLeft = Events.Where(x => x.Row == row + 2 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
+                                                            var zVolRight = Events.Where(x => x.Row == row + 3 && x.Type == EventType.Effect && x.Value == (int)Effect.Zpecial).FirstOrDefault();
+
+                                                            if (zFade != null && zVolLeft != null && zVolRight != null)
+                                                            {
+                                                                byteList.Add((byte)0xF8);
+                                                                byteList.Add((byte)zFade.Parameters[0]);
+                                                                byteList.Add((byte)zVolLeft.Parameters[0]);
+                                                                byteList.Add((byte)zVolRight.Parameters[0]);
+
+                                                                zFade.Processed = true;
+                                                                zVolLeft.Processed = true;
+                                                                zVolRight.Processed = true;
+                                                            }
+                                                            break;
+                                                        }
+                                                }
+                                                break;
+                                            }
+                                    }
+                                    break;
+                                }
+                            default:
+                                break;
+                        }
+
+                        eEvent.Processed = true;
+                    }
                 }
 
                 /* Search for the next event */
@@ -940,14 +1211,21 @@ namespace mITroid.NSPC
                         {
                             if (startRow == 0)
                             {
-                                if (curEvent.Parameters[0] == 0 && curEvent.Parameters[1] == 0)
+                                if(curEvent.Parameters[0] == 0)
                                 {
                                     curEvent.Parameters[0] = Memory[Channel].VibratoRate;
-                                    curEvent.Parameters[1] = Memory[Channel].VibratoDepth;
                                 }
                                 else
                                 {
                                     Memory[Channel].VibratoRate = curEvent.Parameters[0];
+                                }
+
+                                if (curEvent.Parameters[1] == 0)
+                                {
+                                    curEvent.Parameters[1] = Memory[Channel].VibratoDepth;
+                                }
+                                else
+                                {
                                     Memory[Channel].VibratoDepth = curEvent.Parameters[1];
                                 }
 
@@ -1115,40 +1393,29 @@ namespace mITroid.NSPC
                     }
                     patternLength += noteLength;
 
-                    bool preEffect = false;
-                    if (effectList.Count > 0)
+                    if(preEffectList.Count > 0)
                     {
-                        switch ((Effect)effectList[0])
-                        {
-                            case Effect.VolumeSlide:
-                            case Effect.VibratoOff:
-                            case Effect.TremoloOff:
-                                preEffect = true;
-                                break;
-                        }
+                        byteList.AddRange(preEffectList);
                     }
 
-                    if(effectList.Count > 0 && preEffect == true)
-                    {
-                        byteList.AddRange(effectList);
-                    }
+                    //if (iEvent == null || eEvents.Count != 0 && eEvents.Any(x => (Effect)x.Value == Effect.NotePortamento))
+                    //{
+                    //    byteList.Add(0xC8);
+                    //}
+                    //else
+                    //{
+                    //    byteList.Add((byte)lastnote);
+                    //}
 
-                    if (iEvent == null || eEvent != null && ((Effect)eEvent.Value) == Effect.NotePortamento)
-                    {
-                        byteList.Add(0xC8);
-                    }
-                    else
-                    {
-                        byteList.Add((byte)lastnote);
-                    }
+                    byteList.Add(0xC8);
 
                     /* If we're not on a note, apply effects after the rest to get proper timing on effects */
-                    if (effectList.Count > 0 && preEffect == false)
+                    if (effectList.Count > 0)
                     {
                         byteList.AddRange(effectList);
                     }
 
-                    if(effectList.Count > 0 && preEffect == true && (Effect)effectList[0] == Effect.VibratoOff)
+                    if(eEvents.Count > 0 && eEvents.Any(x => (Effect)x.Value == Effect.VibratoOff))
                     {
                         effectList = new List<byte>();
                         effectList.Add((byte)Effect.NotePortamento);
@@ -1165,6 +1432,7 @@ namespace mITroid.NSPC
 
             Memory[Channel].NoteVolume = lastnotevol;
             Memory[Channel].Volume = volume;
+            Memory[Channel].Note = lastnote;
 
             byteList.Add(0);
             Data = byteList.ToArray();
