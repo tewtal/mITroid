@@ -29,7 +29,8 @@ namespace mITroid.NSPC
         Special = 'S',
         Zpecial = 'Z',
         PortamentoUp = 'F',
-        PortamentoDown = 'E'
+        PortamentoDown = 'E',
+        PatternBreak = 'C'        
     }
 
     enum Effect
@@ -49,7 +50,8 @@ namespace mITroid.NSPC
         NotePortamento = 0xF9,
         Instrument = 0xE0,
         Special = 0xFE,
-        Zpecial = 0xFD
+        Zpecial = 0xFD,
+        PatternBreak = 0xFC
     }
 
     class Event
@@ -204,6 +206,12 @@ namespace mITroid.NSPC
                 case ITEffect.Zpecial:
                     {
                         ev.Value = (int)Effect.Zpecial;
+                        ev.Parameters = new List<int>() { itRow.Value };
+                        break;
+                    }
+                case ITEffect.PatternBreak:
+                    {
+                        ev.Value = (int)Effect.PatternBreak;
                         ev.Parameters = new List<int>() { itRow.Value };
                         break;
                     }
@@ -486,6 +494,7 @@ namespace mITroid.NSPC
             int patternLength = 0;
             int portamento = 0;
             int lastnotevol = 0;
+            int portamentoTarget = 0;
             Instrument nI = null;
 
             if(Memory[Channel].InstrumentIndex >= 0)
@@ -544,7 +553,13 @@ namespace mITroid.NSPC
                 var vEvent = Events.Where(x => x.Row == row && x.Type == EventType.Volume && x.Processed == false).FirstOrDefault();
                 var eEvents = Events.Where(x => x.Row == row && x.Type == EventType.Effect && x.Processed == false).ToList();
 
-                if(nEvent != null)
+                if (eEvents.Any(x => (Effect)x.Value == Effect.PatternBreak))
+                {
+                    Rows = row;
+                    break;
+                }
+
+                if (nEvent != null)
                 {
                     if (nEvent.Value == -1 && lastnote >= 0)
                     {
@@ -748,78 +763,115 @@ namespace mITroid.NSPC
                                     break;
                                 }
                             case Effect.NotePortamento:
-                                {
+                                {                                    
                                     if (nEvent != null)
                                     {
-                                        int val = eEvent.Parameters[0];
-                                        if (val == 0 && Memory[Channel].Portamento >= 0)
-                                        {
-                                            val = Memory[Channel].Portamento;
-                                        }
-                                        else
-                                        {
-                                            Memory[Channel].Portamento = val;
-                                        }
+                                        portamentoTarget = nEvent.Value;
+                                        nEvent.Processed = true;
+                                        nEvent = null;
 
-                                        int semitones = Math.Abs(nEvent.Value - lastnote);
-                                        double speed = val * 0.0625;
-                                        double ticks = (int)((semitones / speed) / 2.0);
-                                        int pitch_speed = (int)(ticks * module.CurrentSpeed);
-                                        if (pitch_speed < 1)
-                                            pitch_speed = 1;
-
-                                        if (vEvent == null)
+                                    }
+                                    else
+                                    {
+                                        if (portamentoTarget == 0)
                                         {
-                                            if (volume != lastnotevol)
-                                            {
-                                                volume = lastnotevol;
-                                                preEffectList.Add((byte)Effect.VolumeSlide);
-                                                preEffectList.Add((byte)0x01);
-                                                preEffectList.Add(Vol(volume, nI, module));
-                                                volumeSlide = 0;
-                                            }
+                                            break;
                                         }
-                                        else
+                                    }
+
+                                    int val = eEvent.Parameters[0];
+                                    if (val == 0 && Memory[Channel].Portamento >= 0)
+                                    {
+                                        val = Memory[Channel].Portamento;
+                                    }
+                                    else
+                                    {
+                                        Memory[Channel].Portamento = val;
+                                    }
+
+                                    //int semitones = Math.Abs(nEvent.Value - lastnote);
+                                    //double speed = val * 0.0625;
+                                    //double ticks = (int)((semitones / speed) / 2.0);
+                                    //int pitch_speed = (int)(ticks * module.CurrentSpeed);
+                                    //if (pitch_speed < 1)
+                                    //    pitch_speed = 1;
+
+                                    if (vEvent == null)
+                                    {
+                                        if (volume != lastnotevol)
                                         {
+                                            volume = lastnotevol;
                                             preEffectList.Add((byte)Effect.VolumeSlide);
                                             preEffectList.Add((byte)0x01);
-                                            preEffectList.Add(Vol(vEvent.Value, nI, module));
+                                            preEffectList.Add(Vol(volume, nI, module));
                                             volumeSlide = 0;
-                                            volume = vEvent.Value;
                                         }
+                                    }
+                                    else
+                                    {
+                                        preEffectList.Add((byte)Effect.VolumeSlide);
+                                        preEffectList.Add((byte)0x01);
+                                        preEffectList.Add(Vol(vEvent.Value, nI, module));
+                                        volumeSlide = 0;
+                                        volume = vEvent.Value;
+                                    }
 
-                                        effectList.Add((byte)Effect.NotePortamento);
-                                        effectList.Add((byte)0x00);
-                                        effectList.Add((byte)pitch_speed);
-                                        effectList.Add((byte)nEvent.Value);
+                                    int effectRows = 1;
 
-                                        /* Scan for future note portamento effects and process them */
-                                        var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
-                                        int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
-                                        for (int search = (row + 1); search < nextNotePos; search++)
+                                    /* Scan for future note portamento effects and process them */
+                                    var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
+                                    int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
+                                    for (int search = (row + 1); search < nextNotePos; search++)
+                                    {
+                                        var vSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.NotePortamento && x.Processed == false).FirstOrDefault();
+                                        if (vSearch != null)
                                         {
-                                            var vSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.NotePortamento && x.Processed == false).FirstOrDefault();
-                                            if (vSearch != null)
+                                            if (vSearch.Parameters[0] == val || vSearch.Parameters[0] == 0x00)
                                             {
-                                                if (vSearch.Parameters[0] == val || vSearch.Parameters[0] == 0x00)
-                                                {
-                                                    vSearch.Processed = true;
-                                                }
-                                                else
-                                                {
-                                                    break;
-                                                }
+                                                vSearch.Processed = true;
+                                                effectRows++;
                                             }
                                             else
                                             {
                                                 break;
                                             }
                                         }
-
-                                        lastnote = nEvent.Value;
-                                        nEvent.Processed = true;
-                                        nEvent = null;
+                                        else
+                                        {
+                                            break;
+                                        }
                                     }
+
+                                    double semitonesPerTick = (val * (1.0 / 16.0));
+                                    int semitones = ((portamentoTarget > lastnote) ? (portamentoTarget - lastnote) : (lastnote - portamentoTarget));
+                                    double semitoneTicks = Math.Floor(semitones / semitonesPerTick);
+
+                                    int ticksPerRow = module.CurrentSpeed;
+                                    int effectTicks = effectRows * ticksPerRow;
+
+                                    int newNote = portamentoTarget;
+
+                                    if(semitoneTicks > effectTicks)
+                                    {
+                                        int calcSemitones = (int)(semitonesPerTick * effectTicks);
+                                        newNote = (int)((portamentoTarget > lastnote) ? (lastnote + calcSemitones) : (lastnote - calcSemitones));
+                                        semitoneTicks = (effectTicks - 1);
+                                    }
+
+                                    if (portamentoTarget > lastnote && newNote > portamentoTarget)
+                                    {
+                                        newNote = portamentoTarget;
+                                    }
+                                    else if (portamentoTarget < lastnote && newNote < portamentoTarget)
+                                    {
+                                        newNote = portamentoTarget;
+                                    }
+                                        
+                                    effectList.Add((byte)Effect.NotePortamento);
+                                    effectList.Add((byte)0x00);
+                                    effectList.Add((byte)(semitoneTicks + 1));
+                                    effectList.Add((byte)newNote);
+                                    lastnote = newNote;
 
                                     break;
                                 }
@@ -1166,7 +1218,7 @@ namespace mITroid.NSPC
                             if (vSearch.Parameters[0] != 0)
                                 effectValue = vSearch.Parameters[0];                            
 
-                            semitones += effectValue;
+                            semitones += ((effectValue * (module.CurrentSpeed - 1)));
                             vSearch.Processed = true;
                         }
                         else
