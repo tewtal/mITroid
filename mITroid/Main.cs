@@ -94,7 +94,11 @@ namespace mITroid
                 {
                     if (_module.Game == NSPC.Game.SM)
                     {
-                        patches.Add(new Patch() { Offset = 0x1CC5, Data = new byte[] { 0xF0, 0x30 }, OrigData = new byte[] { 0xF0, 0x23 } });
+                        patches.Add(new Patch() { Offset = 0x1CC5, Data = new byte[] { 0xF0, 0x2A }, OrigData = new byte[] { 0xF0, 0x23 } });
+                    }
+                    else if(_module.Game == NSPC.Game.ALTTP)
+                    {
+                        patches.Add(new Patch() { Offset = 0x1033, Data = new byte[] { 0xF0, 0x2A }, OrigData = new byte[] { 0xF0, 0x23 } });
                     }
                 }
 
