@@ -806,7 +806,7 @@ namespace mITroid.NSPC
                                         volume = vEvent.Value;
                                     }
 
-                                    if (nEvent != null)
+                                    if (nEvent != null && nEvent.Value <= 199)
                                     {
                                         portamentoTarget = nEvent.Value;
                                         nEvent.Processed = true;
