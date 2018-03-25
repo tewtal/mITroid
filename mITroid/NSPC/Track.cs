@@ -262,6 +262,7 @@ namespace mITroid.NSPC
         public int VibratoDepth { get; set; }
         public int TremoloRate { get; set; }
         public int TremoloDepth { get; set; }
+        public int PortamentoTarget { get; set; }
 
         public int Note { get; set; }
 
@@ -509,6 +510,11 @@ namespace mITroid.NSPC
 
             lastnotevol = Memory[Channel].NoteVolume;
             volume = Memory[Channel].Volume;
+
+            if (portamentoTarget > 0)
+            {
+                portamentoTarget = Memory[Channel].PortamentoTarget;
+            }
 
             if (Memory[Channel].Note >= 0)
             {
@@ -980,6 +986,9 @@ namespace mITroid.NSPC
                                         var lastSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && x.Value == (int)Effect.VolumeSlide && x.Processed == false).FirstOrDefault();
                                         if (lastSearch != null)
                                         {
+                                            if (((targetVolumeChangeRows + 1) * module.CurrentSpeed) > 0xFF)
+                                                break;
+
                                             if (lastSearch.Parameters[1] == 0)
                                             {
                                                 lastSearch.Processed = true;
@@ -1188,15 +1197,19 @@ namespace mITroid.NSPC
                     /* Special case here for the portamento up/down effects that only works on the _next_ note played */
                     var nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
                     int nextNotePos = (nextNote != null ? nextNote.Row : Rows);
-                    int startRow = 0;
-                    int effectRows = 0;
-                    int effectValue = 0;
-                    int semitones = 0;
-                    int firstEffect = 0;
+
+                    int startRow, effectRows, effectValue, firstEffect;
+                    double semitones;
+
+                    startRow = 0;
+                    effectRows = 0;
+                    effectValue = 0;
+                    semitones = 0;
+                    firstEffect = 0;
                     for (int search = (row + 1); search < nextNotePos; search++)
                     {
                         var vSearch = Events.OrderBy(x => x.Row).Where(x => x.Row == search && x.Type == EventType.Effect && (x.Value == (int)Effect.PortamentoDown || x.Value == (int)Effect.PortamentoUp) && x.Processed == false).FirstOrDefault();
-                        if(vSearch != null)
+                        if (vSearch != null)
                         {
                             if (startRow == 0)
                             {
@@ -1213,12 +1226,28 @@ namespace mITroid.NSPC
                                 firstEffect = vSearch.Value;
                             }
 
+                            if (vSearch.Value != firstEffect)
+                                break;
+
                             effectRows++;
 
                             if (vSearch.Parameters[0] != 0)
-                                effectValue = vSearch.Parameters[0];                            
+                                effectValue = vSearch.Parameters[0];
 
-                            semitones += ((effectValue * (module.CurrentSpeed - 1)));
+                            if ((effectValue & 0xF0) == 0xF0)
+                            {
+                                /* Fine portamento */
+                                semitones += ((effectValue & 0x0F) * (1.0 / 16.0));
+                            }
+                            else if ((effectValue & 0xE0) == 0xE0)
+                            {
+                                /* extra fine portamento */
+                                semitones += ((effectValue & 0x0F) * (1.0 / 64.0));
+                            }
+                            else
+                            {
+                                semitones += (effectValue * (1.0 / 16.0)) * (module.CurrentSpeed - 1);
+                            }
                             vSearch.Processed = true;
                         }
                         else
@@ -1228,9 +1257,19 @@ namespace mITroid.NSPC
                         }
                     }
 
-                    if (startRow > 0)
+                    if (startRow > 0 && ((int)Math.Floor(semitones)) != 0)
                     {
-                        int real_semitones = (int)Math.Round((double)semitones / 16.0, 0);
+                        int real_semitones = (int)Math.Floor(semitones);
+
+                        if (nEvent.Value + semitones > 199)
+                        {
+                            real_semitones = (199 - nEvent.Value);
+                        }
+                        else if(nEvent.Value + semitones < 128)
+                        {
+                            real_semitones = (nEvent.Value - 128);
+                        }
+
                         effectList.Add((byte)Effect.PortamentoUp);
                         effectList.Add((byte)((startRow - row) * module.CurrentSpeed));
                         effectList.Add((byte)(module.CurrentSpeed * effectRows));
@@ -1244,6 +1283,7 @@ namespace mITroid.NSPC
                         }
                         portamento = 1;
                     }
+
 
                     /* Vibrato special thing test */
                     nextNote = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type == EventType.Note).FirstOrDefault();
@@ -1433,6 +1473,11 @@ namespace mITroid.NSPC
                 }
                 else
                 {
+                    if (preEffectList.Count > 0)
+                    {
+                        byteList.AddRange(preEffectList);
+                    }
+
                     if (newLength != noteLength || notedelay > 0)
                     {
                         noteLength = newLength;
@@ -1445,10 +1490,6 @@ namespace mITroid.NSPC
                     }
                     patternLength += noteLength;
 
-                    if(preEffectList.Count > 0)
-                    {
-                        byteList.AddRange(preEffectList);
-                    }
 
                     //if (iEvent == null || eEvents.Count != 0 && eEvents.Any(x => (Effect)x.Value == Effect.NotePortamento))
                     //{
@@ -1472,7 +1513,7 @@ namespace mITroid.NSPC
                         effectList = new List<byte>();
                         effectList.Add((byte)Effect.NotePortamento);
                         effectList.Add((byte)0x00);
-                        effectList.Add((byte)1);
+                        effectList.Add((byte)(module.CurrentSpeed - 1));
                         effectList.Add((byte)lastnote);
                         byteList.AddRange(effectList);
                     }
@@ -1485,6 +1526,7 @@ namespace mITroid.NSPC
             Memory[Channel].NoteVolume = lastnotevol;
             Memory[Channel].Volume = volume;
             Memory[Channel].Note = lastnote;
+            Memory[Channel].PortamentoTarget = portamentoTarget;
 
             byteList.Add(0);
             Data = byteList.ToArray();

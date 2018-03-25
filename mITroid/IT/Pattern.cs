@@ -117,12 +117,7 @@ namespace mITroid.IT
                     if ((maskVariable & 4) != 0)
                     {
                         int volume = file.ReadByte();
-
-                        //if (volume <= 64)
-                        //{
-                            row.Volume = volume;
-                        //}
-
+                        row.Volume = volume;
                         _channels[curChan].LastVolume = volume;
                     }
 
@@ -145,10 +140,7 @@ namespace mITroid.IT
                     }
                     if ((maskVariable & 64) != 0)
                     {
-                        if (_channels[curChan].LastVolume <= 64)
-                        {
-                            row.Volume = _channels[curChan].LastVolume;
-                        }
+                        row.Volume = _channels[curChan].LastVolume;
                     }
                     if ((maskVariable & 128) != 0)
                     {
