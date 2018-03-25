@@ -773,7 +773,7 @@ namespace mITroid.NSPC
 
                                     if (vEvent == null)
                                     {
-                                        if (nEvent == null)
+                                        if (nEvent == null || (nEvent != null && iEvent == null))
                                         {
                                             if (volume != lastnotevol)
                                             {
@@ -1436,9 +1436,13 @@ namespace mITroid.NSPC
 
                         if (fadeOutVal == 0)
                         {
-                            if (newLength != noteLength)
+                            if (newLength != noteLength || notedelay > 0)
                             {
                                 noteLength = newLength;
+                                if (notedelay > 0)
+                                {
+                                    noteLength -= notedelay;
+                                }
                                 byteList.Add((byte)noteLength);
                             }
 
@@ -1454,9 +1458,13 @@ namespace mITroid.NSPC
                             volumeSlide = 1;
                             volume = 0;
 
-                            if (newLength != noteLength)
+                            if (newLength != noteLength || notedelay > 0)
                             {
                                 noteLength = newLength;
+                                if (notedelay > 0)
+                                {
+                                    noteLength -= notedelay;
+                                }
                                 byteList.Add((byte)noteLength);
                             }
 
@@ -1523,6 +1531,14 @@ namespace mITroid.NSPC
                             novolumechange = 0;
                         }
 
+                        if(portamento == 1 && nextNotePos == Rows)
+                        {
+                            if(newLength != module.CurrentSpeed)
+                            {
+                                newLength -= module.CurrentSpeed;
+                            }
+                        }
+
                         if (newLength != noteLength || notedelay > 0)
                         {
                             noteLength = newLength;
@@ -1532,7 +1548,6 @@ namespace mITroid.NSPC
                             }
                             byteList.Add((byte)noteLength);
                         }
-
 
                         patternLength += noteLength;
                         byteList.Add((byte)nEvent.Value);
