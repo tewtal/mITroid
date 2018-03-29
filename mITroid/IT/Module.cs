@@ -18,6 +18,7 @@ namespace mITroid.IT
         private List<uint> _sampleOffsets;
         private List<uint> _patternOffsets;
         private List<int> _initialChannelVolume;
+        private List<int> _initialChannelPanning;
 
         private int _patternNum;
         private int _sampleNum;
@@ -33,6 +34,7 @@ namespace mITroid.IT
         public int LoopSequence { get; set; }
 
         public List<int> InitialChannelVolume { get { return _initialChannelVolume; } }
+        public List<int> InitialChannelPanning { get { return _initialChannelPanning; } }
 
         public List<Pattern> Patterns { get { return _patterns; } }
         public List<Sample> Samples { get { return _samples; } }
@@ -124,6 +126,15 @@ namespace mITroid.IT
             {
                 _initialChannelVolume.Add(file.ReadByte());
             }
+
+            file.BaseStream.Seek(0x40, SeekOrigin.Begin);
+            _initialChannelPanning = new List<int>();
+            for (int i = 0; i < _patterns[0].Channels.Count; i++)
+            {
+                _initialChannelPanning.Add(file.ReadByte());
+            }
+
+
         }
     }
 }

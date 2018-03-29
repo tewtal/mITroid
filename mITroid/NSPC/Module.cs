@@ -132,6 +132,7 @@ namespace mITroid.NSPC
         public int EngineSpeed { get; set; }
         public bool UseNewADSR { get; set; }
         public int[] ChannelVolume { get; set; }
+        public int[] ChannelPanning { get; set; }
 
         public Dictionary<int,int> SampleIndexMap { get; set; }
         public Dictionary<int,int> InstrumentIndexMap { get; set; }
@@ -141,12 +142,13 @@ namespace mITroid.NSPC
             EngineSpeed = engineSpeed;
             Name = itModule.Name;
             GlobalVolume = (itModule.GlobalVolume * 2) - 1;
-            InitialTempo = (int)Math.Round(itModule.InitialTempo / (4.8 / EngineSpeed), 0);
+            InitialTempo = (int)Math.Round(itModule.InitialTempo / (4.85 / EngineSpeed), 0);
             InitialSpeed = itModule.InitialSpeed * EngineSpeed;
             LoopSequence = itModule.LoopSequence;
             UseNewADSR = newAdsr;
             Game = game;
             ChannelVolume = new int[] { 64, 64, 64, 64, 64, 64, 64, 64 };
+            ChannelPanning = new int[] { 32, 32, 32, 32, 32, 32, 32, 32 };
 
             SampleIndexMap = new Dictionary<int, int>();
             InstrumentIndexMap = new Dictionary<int, int>();
@@ -209,6 +211,7 @@ namespace mITroid.NSPC
             for (int i = 0; i < itModule.InitialChannelVolume.Count; i++)
             {
                 ChannelVolume[i] = itModule.InitialChannelVolume[i];
+                ChannelPanning[i] = itModule.InitialChannelPanning[i];
             }
 
             _samples = new List<Sample>();
@@ -372,7 +375,7 @@ namespace mITroid.NSPC
 
 
             /* Reserve space for sequence data and setup pattern*/
-            int patternDataOffset = PatternOffset + (_sequences.Count * 2) + 8 + 34;
+            int patternDataOffset = PatternOffset + (_sequences.Count * 2) + 8 + 34 + (ChannelPanning.Any(x => x != 32) ?  (7 * 8) : 0);
             int duplicateRows = 0;
             int chunkEnd = 0;
             curOffset = patternDataOffset;
@@ -468,10 +471,37 @@ namespace mITroid.NSPC
                     bw.Write((UInt16)0x00FF);
                     bw.Write((UInt16)((PatternOffset + 4) + (2 * LoopSequence)));
 
-                    /* Write setup pattern */
-                    for(int i = 0; i < 8; i++)
+                    /* Write setup pattern pointers */
+
+                    if (ChannelPanning.Any(x => x != 32))
                     {
-                        bw.Write((UInt16)(setupPattern + 16));
+                        for (int i = 0; i < 8; i++)
+                        {
+                            bw.Write((UInt16)(setupPattern + 16 + (i * 7)));
+                        }
+
+                        for (int i = 0; i < 8; i++)
+                        {
+                            bw.Write((byte)0xE1);
+                            bw.Write((byte)(0x14 - (ChannelPanning[i] / 3.2)));
+                            bw.Write((byte)0xEF);
+                            bw.Write((ushort)(setupPattern + 16 + (8 * 7)));
+                            bw.Write((byte)0x00);
+                            bw.Write((byte)0x00);
+                        }
+
+                        bw.Write((byte)0xC9);
+                        bw.Write((byte)0xC9);
+                    }
+                    else
+                    {
+                        for (int i = 0; i < 8; i++)
+                        {
+                            bw.Write((UInt16)(setupPattern + 16));
+                        }
+
+                        bw.Write((byte)0xE1);
+                        bw.Write((byte)0x0A);
                     }
 
                     bw.Write((byte)0xF5);
@@ -482,8 +512,6 @@ namespace mITroid.NSPC
                     bw.Write((byte)GlobalVolume);
                     bw.Write((byte)0xE7);
                     bw.Write((byte)InitialTempo);
-                    bw.Write((byte)0xE1);
-                    bw.Write((byte)0x0A);
                     bw.Write((byte)0xED);
                     bw.Write((byte)GlobalVolume);
                     bw.Write((byte)InitialSpeed);

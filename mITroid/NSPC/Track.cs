@@ -1135,6 +1135,18 @@ namespace mITroid.NSPC
 
                                     }
 
+                                    // Special case where a volume slide is only done for one row
+                                    // We reduce it because it's normally supposed to start one tick after note-on
+                                    // but we can't do that, so that causes notes to fade out too fast
+                                    if (targetVolumeChangeRows == 1 && nextNotePos == (row + 1))
+                                    {
+                                        targetVolumeChange = (int)(targetVolumeChange * 0.5);
+                                    }
+                                    else if(targetVolumeChangeRows == 1 && nextNotePos != (row + 1))
+                                    {
+                                        targetVolumeChangeRows++;
+                                    }
+
                                     int finalVolume = (volume + targetVolumeChange);
 
                                     if (finalVolume < 0)
@@ -1167,8 +1179,17 @@ namespace mITroid.NSPC
                                         case 0x0D: /* note delay by sub_val ticks */
                                             {
                                                 notedelay = (sub_val * module.EngineSpeed);
-                                                effectList.Add((byte)notedelay);
-                                                effectList.Add((byte)0xC8);
+                                                //effectList.Add((byte)notedelay);
+                                                //effectList.Add((byte)0xC8);
+                                                break;
+                                            }
+                                        case 0x0C: /* note cut after sub_val ticks */
+                                            {
+                                                notedelay = (sub_val * module.EngineSpeed);
+                                                if(nEvent == null)
+                                                {
+                                                    nEvent = new Event() { Type = EventType.Note, Processed = false, Row = row, Value = 0xC9 };
+                                                }
                                                 break;
                                             }
                                         case 0x00: /* Special commands */
@@ -1260,6 +1281,18 @@ namespace mITroid.NSPC
                 var nextEvent = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type != EventType.Instrument && x.Value != (int)Effect.PortamentoDown && x.Value != (int)Effect.PortamentoUp && x.Value != (int)Effect.Vibrato && x.Processed == false).FirstOrDefault();
                 int nextRow = (nextEvent != null ? nextEvent.Row : Rows);
                 int newLength = (nextRow - row) * module.CurrentSpeed;
+
+                var nextCut = Events.Where(x => x.Row == nextRow && x.Type == EventType.Effect && x.Value == (int)Effect.Special && x.Parameters[0] == 0x0C).FirstOrDefault();
+                if (nextCut != null)
+                {
+                    newLength += (nextCut.Parameters[1] * module.EngineSpeed);
+                }
+
+                var nextDelay = Events.Where(x => x.Row == nextRow && x.Type == EventType.Effect && x.Value == (int)Effect.Special && x.Parameters[0] == 0x0D).FirstOrDefault();
+                if (nextDelay != null)
+                {
+                    newLength += (nextDelay.Parameters[1] * module.EngineSpeed);
+                }
 
                 if (newLength > 0x7F)
                 {
@@ -1430,16 +1463,18 @@ namespace mITroid.NSPC
 
                     if (nEvent.Value == 0xFF)
                     {
-                        int fadeOutVal = (nI.FadeOut * 32) * module.EngineSpeed;
+                        int fadeOutVal = (nI.FadeOut * 32);
+                        fadeOutVal = (8192 / fadeOutVal) * module.CurrentSpeed;
+
                         if (fadeOutVal > 0xFF)
                             fadeOutVal = 0xFF;
 
                         if (fadeOutVal == 0)
                         {
-                            if (newLength != noteLength || notedelay > 0)
+                            if (newLength != noteLength || notedelay != 0)
                             {
                                 noteLength = newLength;
-                                if (notedelay > 0)
+                                if (notedelay != 0)
                                 {
                                     noteLength -= notedelay;
                                 }
@@ -1458,10 +1493,10 @@ namespace mITroid.NSPC
                             volumeSlide = 1;
                             volume = 0;
 
-                            if (newLength != noteLength || notedelay > 0)
+                            if (newLength != noteLength || notedelay != 0)
                             {
                                 noteLength = newLength;
-                                if (notedelay > 0)
+                                if (notedelay != 0)
                                 {
                                     noteLength -= notedelay;
                                 }
@@ -1539,10 +1574,10 @@ namespace mITroid.NSPC
                             }
                         }
 
-                        if (newLength != noteLength || notedelay > 0)
+                        if (newLength != noteLength || notedelay != 0)
                         {
                             noteLength = newLength;
-                            if (notedelay > 0)
+                            if (notedelay != 0)
                             {
                                 noteLength -= notedelay;
                             }
@@ -1572,14 +1607,13 @@ namespace mITroid.NSPC
                         byteList.AddRange(preEffectList);
                     }
 
-                    if (newLength != noteLength || notedelay > 0)
+                    if (newLength != noteLength || notedelay != 0)
                     {
                         noteLength = newLength;
-                        if (notedelay > 0)
+                        if (notedelay != 0)
                         {
                             noteLength -= notedelay;
                         }
-                        noteLength = newLength;
                         byteList.Add((byte)noteLength);
                     }
 
