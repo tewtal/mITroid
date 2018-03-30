@@ -63,6 +63,7 @@
             this.label2 = new System.Windows.Forms.Label();
             this.button2 = new System.Windows.Forms.Button();
             this.button3 = new System.Windows.Forms.Button();
+            this.btnAdvanced = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             this.groupBox5.SuspendLayout();
             this.groupBox4.SuspendLayout();
@@ -73,7 +74,7 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(205, 288);
+            this.button1.Location = new System.Drawing.Point(211, 288);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(153, 32);
             this.button1.TabIndex = 0;
@@ -435,11 +436,22 @@
             this.button3.UseVisualStyleBackColor = true;
             this.button3.Click += new System.EventHandler(this.button3_Click);
             // 
+            // btnAdvanced
+            // 
+            this.btnAdvanced.Location = new System.Drawing.Point(239, 480);
+            this.btnAdvanced.Name = "btnAdvanced";
+            this.btnAdvanced.Size = new System.Drawing.Size(97, 32);
+            this.btnAdvanced.TabIndex = 6;
+            this.btnAdvanced.Text = "Advanced";
+            this.btnAdvanced.UseVisualStyleBackColor = true;
+            this.btnAdvanced.Click += new System.EventHandler(this.btnAdvanced_Click);
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(575, 520);
+            this.Controls.Add(this.btnAdvanced);
             this.Controls.Add(this.button3);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.groupBox2);
@@ -501,6 +513,7 @@
         private System.Windows.Forms.RadioButton radioOldADSR;
         private System.Windows.Forms.RadioButton radioNewADSR;
         private System.Windows.Forms.CheckBox chkOverwrite;
+        private System.Windows.Forms.Button btnAdvanced;
     }
 }
 

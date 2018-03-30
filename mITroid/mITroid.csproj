@@ -45,6 +45,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Advanced.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Advanced.Designer.cs">
+      <DependentUpon>Advanced.cs</DependentUpon>
+    </Compile>
     <Compile Include="IT\Instrument.cs" />
     <Compile Include="IT\Pattern.cs" />
     <Compile Include="IT\Module.cs" />
@@ -64,6 +70,9 @@
     <Compile Include="NSPC\Track.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="Advanced.resx">
+      <DependentUpon>Advanced.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Main.resx">
       <DependentUpon>Main.cs</DependentUpon>
     </EmbeddedResource>

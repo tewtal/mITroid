@@ -7,11 +7,48 @@ using System.Threading.Tasks;
 
 namespace mITroid.NSPC
 {
+    class RAMMap
+    {
+        public int PatternIndexOffset { get; set; }
+        public int SongIndex { get; set; }
+        public int PatternOffset { get; set; }
+        public int SampleHeaderOffset { get; set; }
+        public int InstrumentOffset { get; set; }
+        public int SampleOffset { get; set; }
+        public int SampleIndexOffset { get; set; }
+        public int InstrumentIndexOffset { get; set; }
+        public int EchoBufferOffset { get; set; }
+        public int EchoBufferLength { get; set; }
+
+        public int PatternEnd { get
+            {
+                int p = 0xFFFF;
+                p = (SampleHeaderOffset > PatternOffset && SampleHeaderOffset < p) ? SampleHeaderOffset : p;
+                p = (InstrumentOffset > PatternOffset && InstrumentOffset < p) ? InstrumentOffset : p;
+                p = (SampleOffset > PatternOffset && SampleOffset < p) ? SampleOffset : p;
+                p = (EchoBufferOffset > PatternOffset && EchoBufferOffset < p) ? EchoBufferOffset : p;
+                return p;
+            }
+        }
+    }
+
     class Chunk
     {
+        public enum ChunkType
+        {
+            SampleHeaders,
+            InstrumentHeaders,
+            Samples,
+            PatternIndex,
+            Patterns,
+            Patches,
+            Echo
+        }
+
         public int Length { get; set; }
         public int Offset { get; set; }
         public byte[] Data { get; set; }
+        public ChunkType Type { get; set; }
     }
 
     class Patch
@@ -47,7 +84,7 @@ namespace mITroid.NSPC
 
             foreach (var p in patches)
             {
-                chunks.Add(new Chunk() { Data = p.Data, Length = p.Data.Length, Offset = p.Offset });
+                chunks.Add(new Chunk() { Data = p.Data, Length = p.Data.Length, Offset = p.Offset, Type = Chunk.ChunkType.Patches });
                 patchCode.AddRange(p.GetUnpatchCode());
             }
 
@@ -77,13 +114,13 @@ namespace mITroid.NSPC
 
             if (game == Game.SM)
             {
-                chunks.Add(new Chunk() { Data = new byte[] { 0x3F, 0xF0, 0x56, 0x00, 0x00 }, Length = 5, Offset = 0x1E8B });
-                chunks.Add(new Chunk() { Data = patchCode.ToArray(), Length = patchCode.Count(), Offset = 0x56F0 });
+                chunks.Add(new Chunk() { Data = new byte[] { 0x3F, 0xF0, 0x56, 0x00, 0x00 }, Length = 5, Offset = 0x1E8B, Type = Chunk.ChunkType.Patches });
+                chunks.Add(new Chunk() { Data = patchCode.ToArray(), Length = patchCode.Count(), Offset = 0x56F0, Type = Chunk.ChunkType.Patches });
             }
             else
             {
-                chunks.Add(new Chunk() { Data = new byte[] { 0x3F, 0x80, 0x3f, 0x00, 0x00 }, Length = 5, Offset = 0x11E6 });
-                chunks.Add(new Chunk() { Data = patchCode.ToArray(), Length = patchCode.Count(), Offset = 0x3f80 });
+                chunks.Add(new Chunk() { Data = new byte[] { 0x3F, 0x80, 0x3f, 0x00, 0x00 }, Length = 5, Offset = 0x11E6, Type = Chunk.ChunkType.Patches });
+                chunks.Add(new Chunk() { Data = patchCode.ToArray(), Length = patchCode.Count(), Offset = 0x3f80, Type = Chunk.ChunkType.Patches });
             }
 
             return chunks;
@@ -93,7 +130,8 @@ namespace mITroid.NSPC
     enum Game
     {
         SM,
-        ALTTP
+        ALTTP,
+        Custom
     }
 
     class Module
@@ -118,14 +156,6 @@ namespace mITroid.NSPC
         public List<Instrument> Instruments { get { return _instruments; } }
         public List<Sequence> Sequence { get { return _sequences; } }
 
-        public int PatternOffset {get; set;}
-        public int SampleHeaderOffset { get; set; }
-        public int InstrumentOffset { get; set; }
-        public int SampleOffset { get; set; }
-        public int SampleIndexOffset { get; set; }
-        public int InstrumentIndexOffset { get; set; }
-        public int PatternEnd { get; set; }
-
         public decimal ResampleFactor { get; set; }
         public bool EnhanceTreble { get; set; }
         public Game Game { get; set; }
@@ -133,11 +163,14 @@ namespace mITroid.NSPC
         public bool UseNewADSR { get; set; }
         public int[] ChannelVolume { get; set; }
         public int[] ChannelPanning { get; set; }
+        public RAMMap Ram { get; set; }
+        public bool Deduplicate { get; set; }
+        public bool SetupPattern { get; set; }
 
         public Dictionary<int,int> SampleIndexMap { get; set; }
         public Dictionary<int,int> InstrumentIndexMap { get; set; }
 
-        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed, bool newAdsr, Game game, bool overwriteDefault)
+        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed, bool newAdsr, Game game, RAMMap ram)
         {
             EngineSpeed = engineSpeed;
             Name = itModule.Name;
@@ -147,60 +180,14 @@ namespace mITroid.NSPC
             LoopSequence = itModule.LoopSequence;
             UseNewADSR = newAdsr;
             Game = game;
+            Ram = ram;
+            Deduplicate = true;
+            SetupPattern = true;
             ChannelVolume = new int[] { 64, 64, 64, 64, 64, 64, 64, 64 };
             ChannelPanning = new int[] { 32, 32, 32, 32, 32, 32, 32, 32 };
 
             SampleIndexMap = new Dictionary<int, int>();
             InstrumentIndexMap = new Dictionary<int, int>();
-
-            /* Set SM standard values */
-            if (Game == Game.SM)
-            {
-                if (overwriteDefault)
-                {
-                    SampleHeaderOffset = 0x6d00;
-                    InstrumentOffset = 0x6c00;
-                    PatternOffset = 0x5828;
-                    PatternEnd = 0x6c00;
-                    SampleOffset = 0x6e00;
-                    SampleIndexOffset = 0x00;
-                    InstrumentIndexOffset = 0x00;
-                }
-                else
-                {
-                    SampleHeaderOffset = 0x6d60;
-                    InstrumentOffset = 0x6c90;
-                    PatternOffset = 0x5828;
-                    PatternEnd = 0x6c00;
-                    SampleOffset = 0xb210;
-                    SampleIndexOffset = 0x18;
-                    InstrumentIndexOffset = 0x18;
-
-                }
-            }
-            else if (Game == Game.ALTTP)
-            {
-                if (overwriteDefault)
-                {
-                    SampleHeaderOffset = 0x3c00;
-                    InstrumentOffset = 0x3d00;
-                    SampleOffset = 0x4000;
-                    PatternOffset = 0x2900;
-                    PatternEnd = 0x3c00;
-                    SampleIndexOffset = 0x00;
-                    InstrumentIndexOffset = 0x00;
-                }
-                else
-                {
-                    SampleHeaderOffset = 0x3c64;
-                    InstrumentOffset = 0x3dae;
-                    SampleOffset = 0xbaa0;
-                    PatternOffset = 0x2900;
-                    PatternEnd = 0x3c00;
-                    SampleIndexOffset = 0x19;
-                    InstrumentIndexOffset = 0x1d;
-                }
-            }
 
             Track.Memory = new EffectMemory[8];
             for (int i = 0; i < 8; i++)
@@ -215,7 +202,7 @@ namespace mITroid.NSPC
             }
 
             _samples = new List<Sample>();
-            int sidx = SampleIndexOffset;
+            int sidx = Ram.SampleIndexOffset;
             foreach (var itSample in itModule.Samples)
             {
                 var sample = new Sample(itSample, enhanceTreble, resampleFactor);
@@ -248,7 +235,7 @@ namespace mITroid.NSPC
                 }
             }
 
-            int iidx = InstrumentIndexOffset;
+            int iidx = Ram.InstrumentIndexOffset;
             _instruments = new List<Instrument>();
             foreach(var itInstrument in itModule.Instruments)
             {
@@ -308,11 +295,12 @@ namespace mITroid.NSPC
 
             var sampleChunk = new Chunk
             {
-                Offset = SampleOffset
+                Offset = Ram.SampleOffset,
+                Type = Chunk.ChunkType.Samples
             };
             List<byte> sampleBytes = new List<byte>();
 
-            int curOffset = SampleOffset;
+            int curOffset = Ram.SampleOffset;
             foreach (var s in _samples.OrderBy(x => x.SampleIndex))
             {
                 if (s.VirtualSampleType == 0)
@@ -332,8 +320,9 @@ namespace mITroid.NSPC
 
             var sampleHeaderChunk = new Chunk
             {
-                Offset = SampleHeaderOffset,
-                Data = new byte[_samples.Count * 4]
+                Offset = Ram.SampleHeaderOffset + (Ram.SampleIndexOffset * 4),
+                Data = new byte[_samples.Count * 4],
+                Type = Chunk.ChunkType.SampleHeaders
             };
             using (MemoryStream ms = new MemoryStream(sampleHeaderChunk.Data))
             {
@@ -352,8 +341,9 @@ namespace mITroid.NSPC
 
             var instrumentChunk = new Chunk
             {
-                Offset = InstrumentOffset,
-                Data = new byte[_instruments.Count * 6]
+                Offset = Ram.InstrumentOffset + (Ram.InstrumentIndexOffset * 6),
+                Data = new byte[_instruments.Count * 6],
+                Type = Chunk.ChunkType.InstrumentHeaders
             };
 
             using (MemoryStream ms = new MemoryStream(instrumentChunk.Data))
@@ -375,30 +365,24 @@ namespace mITroid.NSPC
 
 
             /* Reserve space for sequence data and setup pattern*/
-            int patternDataOffset = PatternOffset + (_sequences.Count * 2) + 8 + 34 + (ChannelPanning.Any(x => x != 32) ?  (7 * 8) : 0);
+            int patternDataOffset = Ram.PatternOffset + (_sequences.Count * 2) + 8 + (SetupPattern ? (34 + (ChannelPanning.Any(x => x != 32) ? (7 * 8) : 0)) : -2);
+            int trackDataOffset = patternDataOffset + (_patterns.Count * 16);
             int duplicateRows = 0;
             int chunkEnd = 0;
-            curOffset = patternDataOffset;
+            curOffset = trackDataOffset;
 
-            //var usedPatterns = new List<int>();
-            //foreach (var s in _sequences)
-            //{
-            //    if (usedPatterns.Contains(s.Pattern))
-            //        continue;
-
-            //    var p = _patterns[s.Pattern];
-            //    usedPatterns.Add(s.Pattern);
-
-                foreach (var p in _patterns)
+            foreach (var p in _patterns)
+            {
+                p.Pointer = curOffset;
+                //curOffset += 16;
+                foreach (var t in p.Tracks)
                 {
-                    p.Pointer = curOffset;
-                    curOffset += 16;
-                    foreach (var t in p.Tracks)
+                    t.GenerateData(this);
+                    if (t.Data.Count() > 0)
                     {
-                        t.GenerateData(this);
-                        if (t.Data.Count() > 0)
+                        /* Check if this track is a duplicate of a previous track */
+                        if (Deduplicate)
                         {
-                            /* Check if this track is a duplicate of a previous track */
                             foreach (var pp in _patterns)
                             {
                                 foreach (var tt in pp.Tracks)
@@ -415,121 +399,155 @@ namespace mITroid.NSPC
                                     }
                                 }
                             }
-
-                            t.Pointer = curOffset;
-                            curOffset += t.Data.Length;
                         }
-                        else
+
+                        if ((curOffset + t.Data.Length) >= Ram.PatternEnd && curOffset < (sampleChunk.Offset + sampleChunk.Length))
                         {
-                            t.Pointer = 0;
+                            /* out of space, allocate more after samples if possible */
+                            chunkEnd = curOffset;
+                            curOffset = sampleChunk.Offset + sampleChunk.Length;
                         }
-                        next:
-                        continue;
-                    }
 
-                    if (curOffset >= PatternEnd && curOffset < (sampleChunk.Offset + sampleChunk.Length))
+                        t.Pointer = curOffset;
+                        curOffset += t.Data.Length;
+                    }
+                    else
                     {
-                        /* out of space, allocate more after samples if possible */
-                        curOffset = sampleChunk.Offset + sampleChunk.Length;
-
-                        chunkEnd = p.Pointer;
-
-                        /* reallocate the current pattern */
-                        p.Pointer = curOffset;
-                        curOffset += 16;
-                        foreach (var t in p.Tracks)
-                        {
-                            if (t.Data.Length > 0)
-                            {
-                                t.Pointer = curOffset;
-                                curOffset += t.Data.Length;
-                            }
-                        }
+                        t.Pointer = 0;
                     }
-                //}
+                    next:
+                    continue;
+                }
             }
 
             if (chunkEnd == 0)
                 chunkEnd = curOffset;
 
+            var indexChunk = new Chunk
+            {
+                Offset = Ram.PatternIndexOffset + ((Ram.SongIndex - 1) * 2),
+                Length = 2,
+                Type = Chunk.ChunkType.PatternIndex,
+                Data = new byte[] { (byte)(Ram.PatternOffset & 0xff), (byte)(Ram.PatternOffset >> 8) }
+            };
+
+            chunks.Add(indexChunk);
+
             var patternChunk = new Chunk
             {
-                Offset = PatternOffset,
-                Data = new byte[chunkEnd - PatternOffset + 1]
+                Offset = Ram.PatternOffset,
+                Data = new byte[chunkEnd - Ram.PatternOffset + 1],
+                Type = Chunk.ChunkType.Patterns
             };
+
             using (MemoryStream ms = new MemoryStream(patternChunk.Data))
             {
                 using (BinaryWriter bw = new BinaryWriter(ms))
                 {
-                    int setupPattern = PatternOffset + (_sequences.Count * 2) + 8;
-                    bw.Write((UInt16)(PatternOffset + 2));
-                    bw.Write((UInt16)setupPattern);
-                    foreach(var seq in _sequences)
+                    int setupPattern = Ram.PatternOffset + (_sequences.Count * 2) + 8 - (SetupPattern ? 0 : 2);
+                    //bw.Write((UInt16)(Ram.PatternOffset + 2));
+
+                    if (SetupPattern)
                     {
-                        bw.Write((UInt16)_patterns[seq.Pattern].Pointer);
-                    }
-                    bw.Write((UInt16)0x00FF);
-                    bw.Write((UInt16)((PatternOffset + 4) + (2 * LoopSequence)));
+                        bw.Write((UInt16)setupPattern);
 
-                    /* Write setup pattern pointers */
-
-                    if (ChannelPanning.Any(x => x != 32))
-                    {
-                        for (int i = 0; i < 8; i++)
+                        foreach (var seq in _sequences)
                         {
-                            bw.Write((UInt16)(setupPattern + 16 + (i * 7)));
-                        }
+                            //bw.Write((UInt16)_patterns[seq.Pattern].Pointer);
 
-                        for (int i = 0; i < 8; i++)
-                        {
-                            bw.Write((byte)0xE1);
-                            bw.Write((byte)(0x14 - (ChannelPanning[i] / 3.2)));
-                            bw.Write((byte)0xEF);
-                            bw.Write((ushort)(setupPattern + 16 + (8 * 7)));
-                            bw.Write((byte)0x00);
-                            bw.Write((byte)0x00);
+                            bw.Write((UInt16)(setupPattern + ((seq.Pattern + 1) * 16)));
                         }
-
-                        bw.Write((byte)0xC9);
-                        bw.Write((byte)0xC9);
                     }
                     else
                     {
-                        for (int i = 0; i < 8; i++)
+                        foreach (var seq in _sequences)
                         {
-                            bw.Write((UInt16)(setupPattern + 16));
-                        }
+                            //bw.Write((UInt16)_patterns[seq.Pattern].Pointer);
 
-                        bw.Write((byte)0xE1);
-                        bw.Write((byte)0x0A);
+                            bw.Write((UInt16)(setupPattern + (seq.Pattern * 16)));
+                        }
                     }
 
-                    bw.Write((byte)0xF5);
-                    bw.Write((byte)0x00);
-                    bw.Write((byte)0x00);
-                    bw.Write((byte)0x00);
-                    bw.Write((byte)0xE5);
-                    bw.Write((byte)GlobalVolume);
-                    bw.Write((byte)0xE7);
-                    bw.Write((byte)InitialTempo);
-                    bw.Write((byte)0xED);
-                    bw.Write((byte)GlobalVolume);
-                    bw.Write((byte)InitialSpeed);
-                    bw.Write((byte)0x7F);
-                    bw.Write((byte)0xC9);
-                    bw.Write((byte)0xF0);
-                    bw.Write((byte)0x01);
-                    bw.Write((byte)0x00);
+                    bw.Write((UInt16)0x00FF);
+                    bw.Write((UInt16)((Ram.PatternOffset + (SetupPattern ? 2 : 0)) + (2 * LoopSequence)));
+                    bw.Write((UInt16)0x0000);
 
-
-                    foreach (var p in _patterns.Where(x => x.Pointer < (InstrumentOffset - 0x90)))
+                    if (SetupPattern)
                     {
-                        foreach(var t in p.Tracks)
+                        if (ChannelPanning.Any(x => x != 32))
+                        {
+                            for (int i = 0; i < 8; i++)
+                            {
+                                bw.Write((UInt16)(setupPattern + 16 + (i * 7) + (_patterns.Count * 16)));
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < 8; i++)
+                            {
+                                bw.Write((UInt16)(setupPattern + 16 + (_patterns.Count * 16)));
+                            }
+                        }
+                    }
+
+                    foreach (var p in _patterns)
+                    {
+                        foreach (var t in p.Tracks)
                         {
                             bw.Write((UInt16)t.Pointer);
                         }
+                    }
 
-                        foreach (var t in p.Tracks)
+                    if (SetupPattern)
+                    {
+                        /* Write setup pattern pointers */
+                        if (ChannelPanning.Any(x => x != 32))
+                        {
+                            for (int i = 0; i < 8; i++)
+                            {
+                                bw.Write((byte)0xE1);
+                                bw.Write((byte)(0x14 - (ChannelPanning[i] / 3.2)));
+                                bw.Write((byte)0xEF);
+                                bw.Write((ushort)(setupPattern + 16 + (8 * 7) + (_patterns.Count * 16)));
+                                bw.Write((byte)0x00);
+                                bw.Write((byte)0x00);
+                            }
+
+                            bw.Write((byte)0xC9);
+                            bw.Write((byte)0xC9);
+                        }
+                        else
+                        {
+                            bw.Write((byte)0xE1);
+                            bw.Write((byte)0x0A);
+                        }
+
+                        bw.Write((byte)0xF5);
+                        bw.Write((byte)0x00);
+                        bw.Write((byte)0x00);
+                        bw.Write((byte)0x00);
+                        bw.Write((byte)0xE5);
+                        bw.Write((byte)GlobalVolume);
+                        bw.Write((byte)0xE7);
+                        bw.Write((byte)InitialTempo);
+                        bw.Write((byte)0xED);
+                        bw.Write((byte)GlobalVolume);
+                        bw.Write((byte)InitialSpeed);
+                        bw.Write((byte)0x7F);
+                        bw.Write((byte)0xC9);
+                        bw.Write((byte)0xF0);
+                        bw.Write((byte)0x01);
+                        bw.Write((byte)0x00);
+                    }
+
+                    foreach (var p in _patterns.Where(x => x.Pointer < Ram.PatternEnd))
+                    {
+                        //foreach(var t in p.Tracks)
+                        //{
+                        //    bw.Write((UInt16)t.Pointer);
+                        //}
+
+                        foreach (var t in p.Tracks.Where(x => x.Pointer < Ram.PatternEnd))
                         {
                             if (t.Data.Length > 0)
                             {
@@ -537,45 +555,50 @@ namespace mITroid.NSPC
                             }
                         }
                     }
+
+                    bw.Write((byte)0);
                 }
             }
             patternChunk.Length = patternChunk.Data.Length;
             chunks.Add(patternChunk);
 
-            if (_patterns.Where(x => x.Pointer > sampleChunk.Offset).Any())
+            //if (_patterns.Where(x => x.Pointer > Ram.PatternEnd).Any())
+            if(_patterns.Any(x => x.Tracks.Any(y => y.Pointer > Ram.PatternEnd)))
             {
                 var extraPatternChunk = new Chunk
                 {
-                    Offset = (sampleChunk.Offset + sampleChunk.Length)
+                    Offset = (sampleChunk.Offset + sampleChunk.Length),
+                    Type = Chunk.ChunkType.Patterns
                 };
 
                 int extraLength = 0;
                 var lastPattern = _patterns.OrderByDescending(x => x.Pointer).First();
                 var lastTrack = lastPattern.Tracks.OrderByDescending(x => x.Pointer).First();
 
-                if (lastTrack.Pointer > lastPattern.Pointer)
-                {
+                //if (lastTrack.Pointer > lastPattern.Pointer)
+                //{
                     extraLength = (lastTrack.Pointer + lastTrack.Data.Length) - extraPatternChunk.Offset;
-                }
-                else
-                {
-                    extraLength = (lastPattern.Pointer + 16) - extraPatternChunk.Offset;
-                }
+                //}
+                //else
+                //{
+                //    extraLength = (lastPattern.Pointer + 16) - extraPatternChunk.Offset;
+                //}
 
-                extraPatternChunk.Length = extraLength; //(_patterns.Where(x => x.Pointer >= extraPatternChunk.Offset).Max(x => x.Tracks.Max(y => y.Pointer + y.Data.Length)) - extraPatternChunk.Offset) + 1;
+                extraPatternChunk.Length = extraLength; 
                 extraPatternChunk.Data = new byte[extraPatternChunk.Length];
                 using (MemoryStream ms = new MemoryStream(extraPatternChunk.Data))
                 {
                     using (BinaryWriter bw = new BinaryWriter(ms))
                     {
-                        foreach (var p in _patterns.Where(x => x.Pointer >= extraPatternChunk.Offset).OrderBy(x => x.Pointer))
+                        //foreach (var p in _patterns.Where(x => x.Pointer >= extraPatternChunk.Offset).OrderBy(x => x.Pointer))
+                        foreach(var p in _patterns.Where(x => x.Tracks.Any(y => y.Pointer >= extraPatternChunk.Offset)).OrderBy(x => x.Pointer))
                         {
-                            foreach (var t in p.Tracks)
-                            {
-                                bw.Write((UInt16)t.Pointer);
-                            }
+                            //foreach (var t in p.Tracks)
+                            //{
+                            //    bw.Write((UInt16)t.Pointer);
+                            //}
 
-                            foreach (var t in p.Tracks)
+                            foreach (var t in p.Tracks.Where(x => x.Pointer >= extraPatternChunk.Offset))
                             {
                                 if (t.Data.Length > 0)
                                 {

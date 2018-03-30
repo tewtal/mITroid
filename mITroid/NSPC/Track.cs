@@ -726,9 +726,9 @@ namespace mITroid.NSPC
                         {
                             case Effect.Pan:
                                 {
-                                    effectList.Add((byte)Effect.Pan);
-                                    effectList.Add((byte)0x01);
-                                    effectList.Add((byte)eEvent.Parameters[0]);
+                                    preEffectList.Add((byte)Effect.Pan);
+                                    preEffectList.Add((byte)0x01);
+                                    preEffectList.Add((byte)eEvent.Parameters[0]);
                                     break;
                                 }
 
@@ -1178,17 +1178,39 @@ namespace mITroid.NSPC
                                     {
                                         case 0x0D: /* note delay by sub_val ticks */
                                             {
+                                                if (sub_val >= module.CurrentSpeed)
+                                                {
+                                                    sub_val = module.CurrentSpeed - 1;
+                                                }
+
                                                 notedelay = (sub_val * module.EngineSpeed);
-                                                //effectList.Add((byte)notedelay);
-                                                //effectList.Add((byte)0xC8);
+                                                effectList.Add((byte)notedelay);
+                                                effectList.Add((byte)0xC8);
                                                 break;
                                             }
                                         case 0x0C: /* note cut after sub_val ticks */
                                             {
-                                                notedelay = (sub_val * module.EngineSpeed);
-                                                if(nEvent == null)
+
+                                                if (nEvent == null)
                                                 {
+                                                    if (sub_val >= module.CurrentSpeed)
+                                                    {
+                                                        sub_val = module.CurrentSpeed - 1;
+                                                    }
+
+                                                    notedelay = (sub_val * module.EngineSpeed);
                                                     nEvent = new Event() { Type = EventType.Note, Processed = false, Row = row, Value = 0xC9 };
+                                                }
+                                                else
+                                                {
+                                                    sub_val++;
+
+                                                    if (sub_val >= module.CurrentSpeed)
+                                                    {
+                                                        sub_val = module.CurrentSpeed - 1;
+                                                    }
+
+                                                    notedelay = -(sub_val * module.EngineSpeed);
                                                 }
                                                 break;
                                             }
@@ -1280,19 +1302,41 @@ namespace mITroid.NSPC
                 /* Search for the next event */
                 var nextEvent = Events.OrderBy(x => x.Row).Where(x => x.Row > row && x.Type != EventType.Instrument && x.Value != (int)Effect.PortamentoDown && x.Value != (int)Effect.PortamentoUp && x.Value != (int)Effect.Vibrato && x.Processed == false).FirstOrDefault();
                 int nextRow = (nextEvent != null ? nextEvent.Row : Rows);
+
+                //if(nEvent != null && nEvent.Value == 0xC9 && nextEvent == null && nextRow == Rows)
+                //{
+                //    nextRow--;
+                //}
+
                 int newLength = (nextRow - row) * module.CurrentSpeed;
+                int cdAdded = 0;
 
                 var nextCut = Events.Where(x => x.Row == nextRow && x.Type == EventType.Effect && x.Value == (int)Effect.Special && x.Parameters[0] == 0x0C).FirstOrDefault();
                 if (nextCut != null)
                 {
-                    newLength += (nextCut.Parameters[1] * module.EngineSpeed);
+                    if (Events.Any(x => x.Row == nextCut.Row && x.Type == EventType.Note && x.Processed == false) == false)
+                    {
+                        if(nextCut.Parameters[1] >= module.CurrentSpeed)
+                        {
+                            nextCut.Parameters[1] = module.CurrentSpeed - 1;
+                        }
+
+                        cdAdded = ((nextCut.Parameters[1]) * module.EngineSpeed);
+                        newLength += ((nextCut.Parameters[1]) * module.EngineSpeed);
+                    }
                 }
 
-                var nextDelay = Events.Where(x => x.Row == nextRow && x.Type == EventType.Effect && x.Value == (int)Effect.Special && x.Parameters[0] == 0x0D).FirstOrDefault();
-                if (nextDelay != null)
-                {
-                    newLength += (nextDelay.Parameters[1] * module.EngineSpeed);
-                }
+                //var nextDelay = Events.Where(x => x.Row == nextRow && x.Type == EventType.Effect && x.Value == (int)Effect.Special && x.Parameters[0] == 0x0D).FirstOrDefault();
+                //if (nextDelay != null)
+                //{
+                //    if (nextDelay.Parameters[1] >= module.CurrentSpeed)
+                //    {
+                //        nextDelay.Parameters[1] = module.CurrentSpeed - 1;
+                //    }
+
+                //    cdAdded = (nextDelay.Parameters[1] * module.EngineSpeed);
+                //    newLength += (nextDelay.Parameters[1] * module.EngineSpeed);
+                //}
 
                 if (newLength > 0x7F)
                 {
@@ -1464,11 +1508,6 @@ namespace mITroid.NSPC
                     if (nEvent.Value == 0xFF)
                     {
                         int fadeOutVal = (nI.FadeOut * 32);
-                        fadeOutVal = (8192 / fadeOutVal) * module.CurrentSpeed;
-
-                        if (fadeOutVal > 0xFF)
-                            fadeOutVal = 0xFF;
-
                         if (fadeOutVal == 0)
                         {
                             if (newLength != noteLength || notedelay != 0)
@@ -1476,7 +1515,14 @@ namespace mITroid.NSPC
                                 noteLength = newLength;
                                 if (notedelay != 0)
                                 {
-                                    noteLength -= notedelay;
+                                    if (notedelay > 0)
+                                    {
+                                        noteLength -= notedelay;
+                                    }
+                                    else
+                                    {
+                                        noteLength = Math.Abs(notedelay);
+                                    }
                                 }
                                 byteList.Add((byte)noteLength);
                             }
@@ -1486,6 +1532,10 @@ namespace mITroid.NSPC
                         }
                         else
                         {
+                            fadeOutVal = (8192 / fadeOutVal) * module.CurrentSpeed;
+
+                            if (fadeOutVal > 0xFF)
+                                fadeOutVal = 0xFF;
 
                             byteList.Add((byte)Effect.VolumeSlide);
                             byteList.Add((byte)fadeOutVal);
@@ -1498,7 +1548,14 @@ namespace mITroid.NSPC
                                 noteLength = newLength;
                                 if (notedelay != 0)
                                 {
-                                    noteLength -= notedelay;
+                                    if (notedelay > 0)
+                                    {
+                                        noteLength -= notedelay;
+                                    }
+                                    else
+                                    {
+                                        noteLength = Math.Abs(notedelay);
+                                    }
                                 }
                                 byteList.Add((byte)noteLength);
                             }
@@ -1512,6 +1569,14 @@ namespace mITroid.NSPC
                         nEvent.Processed = true;
 
                         byteList.AddRange(effectList);
+
+                        if (notedelay < 0)
+                        {
+                            patternLength += (module.CurrentSpeed + notedelay);
+                            byteList.Add((byte)(module.CurrentSpeed + notedelay));
+                            byteList.Add((byte)0xC9);
+                            notedelay = (module.CurrentSpeed + notedelay);
+                        }
 
                         if (portamento == 1)
                         {
@@ -1579,18 +1644,34 @@ namespace mITroid.NSPC
                             noteLength = newLength;
                             if (notedelay != 0)
                             {
-                                noteLength -= notedelay;
+                                if (notedelay > 0)
+                                {
+                                    noteLength -= notedelay;
+                                }
+                                else
+                                {
+                                    noteLength = Math.Abs(notedelay);
+                                }
                             }
                             byteList.Add((byte)noteLength);
                         }
 
                         patternLength += noteLength;
                         byteList.Add((byte)nEvent.Value);
+
                         lastnote = nEvent.Value;
                         lastnotevol = volume;
                         nEvent.Processed = true;
 
                         byteList.AddRange(effectList);
+
+                        if (notedelay < 0)
+                        {
+                            patternLength += (module.CurrentSpeed + notedelay);
+                            byteList.Add((byte)(module.CurrentSpeed + notedelay));
+                            byteList.Add((byte)0xC9);
+                            notedelay = (module.CurrentSpeed + notedelay);
+                        }
 
                         if (portamento == 1)
                         {
@@ -1641,7 +1722,7 @@ namespace mITroid.NSPC
                     }
                 }
 
-                row += ((noteLength + notedelay) / module.CurrentSpeed) - 1;
+                row += (((noteLength - cdAdded) + notedelay) / module.CurrentSpeed) - 1;
                 notedelay = 0;
             }
 
@@ -1650,7 +1731,11 @@ namespace mITroid.NSPC
             Memory[Channel].Note = lastnote;
             Memory[Channel].PortamentoTarget = portamentoTarget;
 
-            byteList.Add(0);
+            if (Channel == 0 || module.Deduplicate || module.SetupPattern)
+            {
+                byteList.Add(0);
+            }
+
             Data = byteList.ToArray();
         }
     }
