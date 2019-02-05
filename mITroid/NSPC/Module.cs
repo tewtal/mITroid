@@ -159,7 +159,7 @@ namespace mITroid.NSPC
         public decimal ResampleFactor { get; set; }
         public bool EnhanceTreble { get; set; }
         public Game Game { get; set; }
-        public int EngineSpeed { get; set; }
+        public decimal EngineSpeed { get; set; }
         public bool UseNewADSR { get; set; }
         public int[] ChannelVolume { get; set; }
         public int[] ChannelPanning { get; set; }
@@ -170,13 +170,13 @@ namespace mITroid.NSPC
         public Dictionary<int,int> SampleIndexMap { get; set; }
         public Dictionary<int,int> InstrumentIndexMap { get; set; }
 
-        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, int engineSpeed, bool newAdsr, Game game, RAMMap ram)
+        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, decimal engineSpeed, bool newAdsr, Game game, RAMMap ram)
         {
             EngineSpeed = engineSpeed;
             Name = itModule.Name;
             GlobalVolume = (itModule.GlobalVolume * 2) - 1;
-            InitialTempo = (int)Math.Round(itModule.InitialTempo / (4.85 / EngineSpeed), 0);
-            InitialSpeed = itModule.InitialSpeed * EngineSpeed;
+            InitialTempo = (int)Math.Round(itModule.InitialTempo / (4.85m / EngineSpeed), 0);
+            InitialSpeed = (int)Math.Round(itModule.InitialSpeed * EngineSpeed, 0);
             LoopSequence = itModule.LoopSequence;
             UseNewADSR = newAdsr;
             Game = game;
@@ -572,12 +572,12 @@ namespace mITroid.NSPC
                 };
 
                 int extraLength = 0;
-                var lastPattern = _patterns.OrderByDescending(x => x.Pointer).First();
-                var lastTrack = lastPattern.Tracks.OrderByDescending(x => x.Pointer).First();
+                //var lastPattern = _patterns.OrderByDescending(x => x.Pointer).First();
+                var lastTrackLength = _patterns.Max(x => x.Tracks.Max(y => y.Pointer + y.Data.Length));
 
                 //if (lastTrack.Pointer > lastPattern.Pointer)
                 //{
-                    extraLength = (lastTrack.Pointer + lastTrack.Data.Length) - extraPatternChunk.Offset;
+                    extraLength = lastTrackLength - extraPatternChunk.Offset;
                 //}
                 //else
                 //{

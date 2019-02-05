@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 /*
 BRRtools
 by Bregalad. Special thanks to Kode54.
-Minor post-3.11 fixes by Optiroc (David Lindecrantz).
+Minor post-3.11 fixes by jimbo1qaz Optiroc (David Lindecrantz).
 
 BRRtools are currently the most evolved tools to convert between standard RIFF .wav format and SNES's built-in BRR sound format. 
 They have many features never seen before in any other converter, and are open source.
@@ -35,7 +35,7 @@ namespace mITroid.NSPC
     {
 
         private byte filter_at_loop = 0;
-        private Int16 p1_at_loop, p2_at_loop;
+        private Int32 p1_at_loop, p2_at_loop;
         private bool[] FIRen;
         private uint[] FIRstats;
         private bool wrap_en = true;
@@ -104,11 +104,11 @@ namespace mITroid.NSPC
             }
         }
 
-        private double ADPCMMash(uint shiftamount, byte filter, Int16[] PCM_data, int pn, bool write, bool is_end_point) // PCM_data[16]
+        private double ADPCMMash(uint shiftamount, byte filter, Int32[] PCM_data, int pn, bool write, bool is_end_point) // PCM_data[16]
         {
             double d2 = 0.0;
-            Int16 l1 = p1;
-            Int16 l2 = p2;
+            Int32 l1 = p1;
+            Int32 l2 = p2;
             int step = 1 << (int)shiftamount;
 
             int vlin, d, da, dp, c;
@@ -117,7 +117,7 @@ namespace mITroid.NSPC
             {
                 /* make linear prediction for next sample */
                 /*      vlin = (v0 * iCoef[0] + v1 * iCoef[1]) >> 8; */
-                vlin = get_brr_prediction(filter, l1, l2) >> 1;
+                vlin = get_brr_prediction(filter, (Int16)l1, (Int16)l2) >> 1;
                 d = (PCM_data[pn + i] >> 1) - vlin;      /* difference between linear prediction and current sample */
                 da = Math.Abs(d);
                 if (wrap_en && da > 16384 && da < 32768)
@@ -145,7 +145,7 @@ namespace mITroid.NSPC
                 c &= 0x0f;      /* mask to 4 bits */
 
                 l2 = l1;            /* shift history */
-                l1 = (Int16)(CLAMP_16(vlin + dp) * 2);
+                l1 = (CLAMP_16(vlin + dp) * 2);
 
                 d = PCM_data[pn + i] - l1;
                 d2 += (double)d * d;        /* update square-error */
@@ -182,8 +182,8 @@ namespace mITroid.NSPC
 
             if (write)
             {   /* when generating real output, we want to return these */
-                p1 = l1;
-                p2 = l2;
+                p1 = (Int16)l1;
+                p2 = (Int16)l2;
 
                 BRR[0] = (byte)(((int)shiftamount << 4) | (filter << 2));
                 if (is_end_point)
@@ -193,7 +193,7 @@ namespace mITroid.NSPC
         }
 
         // Encode a ADPCM block using brute force over filters and shift amounts
-        private void ADPCMBlockMash(Int16[] PCM_data, int pn, bool is_loop_point, bool is_end_point)
+        private void ADPCMBlockMash(Int32[] PCM_data, int pn, bool is_loop_point, bool is_end_point)
         {
             int smin = 0, kmin = 0;
             double dmin = System.Double.PositiveInfinity;
@@ -220,11 +220,11 @@ namespace mITroid.NSPC
             FIRstats[kmin]++;
         }
 
-        private Int16[] resample(Int16[] samples, int samples_length, int out_length, char type)
+        private Int32[] resample(Int32[] samples, int samples_length, int out_length, char type)
         {
             double ratio = (double)samples_length / (double)out_length;
             //pcm_t *out = safe_malloc(2 * out_length);
-            Int16[] outBuf = new Int16[out_length];
+            Int32[] outBuf = new Int32[out_length];
 
 
             //printf("Resampling by effective ratio of %f...\n", ratio);
@@ -247,7 +247,7 @@ namespace mITroid.NSPC
                             outBuf[i] = samples[a]; //This used only for the last sample
                         }
                         else
-                            outBuf[i] = (Int16)((1 - b) * samples[a] + b * samples[a + 1]);
+                            outBuf[i] = (Int32)((1 - b) * samples[a] + b * samples[a + 1]);
                     }
                     break;
                 case 's':                               //Sine interpolation
@@ -262,7 +262,7 @@ namespace mITroid.NSPC
                         }
                         else
                         {
-                            outBuf[i] = (Int16)((1 - c) * samples[a] + c * samples[a + 1]);
+                            outBuf[i] = (Int32)((1 - c) * samples[a] + c * samples[a + 1]);
                         }
                     }
                     break;
@@ -271,10 +271,10 @@ namespace mITroid.NSPC
                     {
                         int a = (int)(i * ratio);
 
-                        short s0 = (a == 0) ? samples[0] : samples[a - 1];
-                        short s1 = samples[a];
-                        short s2 = (a + 1 >= samples_length) ? samples[samples_length - 1] : samples[a + 1];
-                        short s3 = (a + 2 >= samples_length) ? samples[samples_length - 1] : samples[a + 2];
+                        short s0 = (short)((a == 0) ? samples[0] : samples[a - 1]);
+                        short s1 = (short)samples[a];
+                        short s2 = (short)((a + 1 >= samples_length) ? samples[samples_length - 1] : samples[a + 1]);
+                        short s3 = (short)((a + 2 >= samples_length) ? samples[samples_length - 1] : samples[a + 2]);
 
                         double a0 = s3 - s2 - s0 + s1;
                         double a1 = s0 - s1 - a0;
@@ -282,7 +282,7 @@ namespace mITroid.NSPC
                         double b = i * ratio - a;
                         double b2 = b * b;
                         double b3 = b2 * b;
-                        outBuf[i] = (Int16)(b3 * a0 + b2 * a1 + b * a2 + s1);
+                        outBuf[i] = (Int32)(b3 * a0 + b2 * a1 + b * a2 + s1);
                     }
                     break;
 
@@ -291,7 +291,7 @@ namespace mITroid.NSPC
                     if (ratio > 1.0)
                     {
                         //signed short* samples_antialiased = safe_malloc(2 * samples_length);
-                        Int16[] samples_antialiased = new Int16[samples_length];
+                        Int32[] samples_antialiased = new Int32[samples_length];
                         double[] fir_coefs = new double[FIR_ORDER + 1];
 
                         // Compute FIR coefficients
@@ -307,7 +307,7 @@ namespace mITroid.NSPC
                                 acc += fir_coefs[k] * ((i + k < samples_length) ? samples[i + k] : samples[samples_length - 1]);
                                 acc += fir_coefs[k] * ((i - k >= 0) ? samples[i - k] : samples[0]);
                             }
-                            samples_antialiased[i] = (Int16)acc;
+                            samples_antialiased[i] = (Int32)acc;
                         }
 
                         //free(samples);
@@ -320,7 +320,7 @@ namespace mITroid.NSPC
                         double acc = 0.0;
                         for (int j = (int)(a - FIR_ORDER); j <= (int)(a + FIR_ORDER); ++j)
                         {
-                            Int16 sample;
+                            Int32 sample;
                             if (j >= 0)
                             {
                                 if (j < samples_length)
@@ -339,7 +339,7 @@ namespace mITroid.NSPC
 
                             acc += sample * sinc(a - j);
                         }
-                        outBuf[i] = (Int16)acc;
+                        outBuf[i] = (Int32)acc;
                     }
                     break;
 
@@ -352,11 +352,11 @@ namespace mITroid.NSPC
         }
 
         // This function applies a treble boosting filter that compensates the gauss lowpass filter
-        private Int16[] treble_boost_filter(Int16[] samples, int length)
+        private Int32[] treble_boost_filter(Int32[] samples, int length)
         {   // Tepples' coefficient multiplied by 0.6 to avoid overflow in most cases
             double[] coefs = new double[8] { 0.912962, -0.16199, -0.0153283, 0.0426783, -0.0372004, 0.023436, -0.0105816, 0.00250474 };
 
-            Int16[] outBuf = new Int16[length]; 
+            Int32[] outBuf = new Int32[length]; 
             for (int i = 0; i < length; ++i)
             {
                 double acc = samples[i] * coefs[0];
@@ -365,7 +365,7 @@ namespace mITroid.NSPC
                     acc += coefs[k] * ((i + k < length) ? samples[i + k] : samples[length - 1]);
                     acc += coefs[k] * ((i - k >= 0) ? samples[i - k] : samples[0]);
                 }
-                outBuf[i] = (Int16)acc;
+                outBuf[i] = (Int32)acc;
             }
             return outBuf;
         }
@@ -375,7 +375,7 @@ namespace mITroid.NSPC
             decimal ratio = resampleFactor; // Resampling factor (range ]0..4])
             byte loop_flag = 0;             // = 0x02 if loop flag is active
             bool fix_loop_en = false;       // True if fixed loop is activated
-            uint loop_start = 0;            // Starting point of loop
+            int loop_start = 0;            // Starting point of loop
             uint truncate_len = 0;          // Point at which input wave will be truncated (if = 0, input wave is not truncated)
             bool treble_boost = enhanceTreble;
             BRRSample bs = new BRRSample();
@@ -386,7 +386,7 @@ namespace mITroid.NSPC
             if (smp.UseLoop)
             {
                 loop_flag = 0x02;
-                loop_start = smp.LoopBeg;
+                loop_start = (int)smp.LoopBeg;
                 fix_loop_en = true;
             }
 
@@ -398,18 +398,33 @@ namespace mITroid.NSPC
                 samples_length = truncate_len;
             }
 
-            Int16[] samples = smp.Data; 
+            Int32[] samples = smp.Data.Select(x => (Int32)x).ToArray();
 
-            uint target_length = (uint)(samples_length / ratio);
-
+            //uint target_length = (uint)(samples_length / ratio);
+            uint target_length = 0;
             uint new_loopsize = 0;
-            if(fix_loop_en)
+
+            if(!fix_loop_en)
             {
-                long loopsize = ((long)(samples_length - loop_start) * target_length) / samples_length;
-            	// New loopsize is the multiple of 16 that comes after loopsize
-            	new_loopsize = (uint)(((loopsize + 15)/16)*16);
-            	// Adjust resampling
-            	target_length = (uint)(((Int64)target_length * new_loopsize) / loopsize);
+                target_length = (uint)Math.Round(samples_length / ratio);
+            }
+            else
+            {
+                if(loop_start < 0)
+                {
+                    loop_start += (int)samples_length;
+                }
+
+                //long loopsize = ((long)(samples_length - loop_start) * target_length) / samples_length;
+                double loopsize = (double)((samples_length - loop_start) / ratio);
+
+                // New loopsize is the multiple of 16 that comes after loopsize
+                //new_loopsize = (uint)(((loopsize + 15)/16)*16);
+                new_loopsize = (uint)(Math.Ceiling(loopsize / 16) * 16);
+
+                // Adjust resampling
+                //target_length = (uint)(((Int64)target_length * new_loopsize) / loopsize);
+                target_length = (uint)Math.Round((samples_length / (double)ratio) * (new_loopsize / loopsize));
             }
 
             bs.ResampleRatio = (decimal)samples_length / (decimal)target_length;
@@ -429,7 +444,7 @@ namespace mITroid.NSPC
             {
             	int padding = (int)(16 - (samples_length % 16));
 
-                Int16[] padSamples = new Int16[2 * (samples_length + padding)];
+                Int32[] padSamples = new Int32[2 * (samples_length + padding)];
                 samples.CopyTo(padSamples, padding);
                 samples = padSamples;
                 samples_length += (uint)padding;

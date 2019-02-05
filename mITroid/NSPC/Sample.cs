@@ -64,5 +64,10 @@ namespace mITroid.NSPC
             }
 
         }
+
+        public static implicit operator Sample(short v)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

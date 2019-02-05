@@ -24,15 +24,15 @@ namespace mITroid.NSPC
         private static readonly int[] DecayTable = { 1200, 740, 440, 290, 180, 110, 74, 37 };
         private static readonly int[] SustainTable = { 65535, 38000, 28000, 24000, 19000, 14000, 12000, 9400, 7100, 5900, 4700, 3500, 2900, 2400, 1800, 1500, 1200, 880, 740, 590, 440, 370, 290, 220, 180, 150, 110, 92, 74, 55, 37, 18 };
 
-        private static readonly double[] DecayMult = { 0.724, 0.518, 0.378, 0.263, 0.181, 0.110, 0.052, 0 };
-        private static readonly double[] SustainMult = { 0.407, 0.623, 0.768, 0.876, 0.962, 1.032, 1.095, 1.149 };
+        private static readonly decimal[] DecayMult = { 0.724m, 0.518m, 0.378m, 0.263m, 0.181m, 0.110m, 0.052m, 0 };
+        private static readonly decimal[] SustainMult = { 0.407m, 0.623m, 0.768m, 0.876m, 0.962m, 1.032m, 1.095m, 1.149m };
 
-        private int FindClosest(int[] table, double value, double multiplier)
+        private int FindClosest(int[] table, decimal value, decimal multiplier)
         {
-            double diff = Int32.MaxValue;
+            decimal diff = Int32.MaxValue;
             for(int i = 0; i < table.Length; i++)
             {
-                double newDiff = Math.Abs((table[i] * multiplier) - (double)value);
+                decimal newDiff = Math.Abs((table[i] * multiplier) - (decimal)value);
                 if (newDiff < diff)
                 {
                     diff = newDiff;
@@ -80,10 +80,10 @@ namespace mITroid.NSPC
 
                 if (nModule.UseNewADSR == true)
                 {
-                    double itTempo = nModule.InitialTempo * (4.8 / nModule.EngineSpeed);
-                    double millisPerTick = (2500.0 / itTempo);
+                    decimal itTempo = nModule.InitialTempo * (4.8m / nModule.EngineSpeed);
+                    decimal millisPerTick = (2500.0m / itTempo);
 
-                    aDuration = (aDuration == 1) ? 0x0F : FindClosest(AttackTable, (aDuration * millisPerTick), 1.0);
+                    aDuration = (aDuration == 1) ? 0x0F : FindClosest(AttackTable, (aDuration * millisPerTick), 1.0m);
 
                     int origDecayTicks = dDuration;
 

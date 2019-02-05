@@ -100,7 +100,7 @@ namespace mITroid
                     txtSamples.Text = "BAA0";
                     txtMusicIndex.Text = "2A00";
                     txtSongIndex.Text = "1";
-                    txtEchoBuffer.Text = "10000";
+                    txtEchoBuffer.Text = "FF00";
                     txtEchoBufferLen.Text = "1000";
                     txtSampleIndexOffset.Text = "19";
                     txtInstrumentIndexOffset.Text = "1D";
@@ -122,7 +122,7 @@ namespace mITroid
                     txtSamples.Text = "4000";
                     txtMusicIndex.Text = "2900";
                     txtSongIndex.Text = "1";
-                    txtEchoBuffer.Text = "10000";
+                    txtEchoBuffer.Text = "FF00";
                     txtEchoBufferLen.Text = "1000";
                     txtSampleIndexOffset.Text = "00";
                     txtInstrumentIndexOffset.Text = "00";
@@ -206,7 +206,7 @@ namespace mITroid
 
             }
 
-            int engineSpeed = 1;
+            decimal engineSpeed = 1;
             if (radio2x.Checked)
             {
                 engineSpeed = 2;
@@ -218,6 +218,10 @@ namespace mITroid
             else if (radio4x.Checked)
             {
                 engineSpeed = 4;
+            }
+            else if (radio05x.Checked)
+            {
+                engineSpeed = 0.5m;
             }
 
             RAMMap ram = new RAMMap();
@@ -280,8 +284,8 @@ namespace mITroid
 
                 if (chkRepointMusicData.Checked)
                 {
-                    patches.Add(new Patch() { Offset = 0x0aaa, Data = new byte[] { 0xf5, (byte)((ram.PatternOffset & 0xff) - 1), (byte)((ram.PatternOffset >> 8) - 1) }, OrigData = new byte[] { 0xf5, 0xff, 0xcf } });
-                    patches.Add(new Patch() { Offset = 0x0aae, Data = new byte[] { 0xf5, (byte)((ram.PatternOffset & 0xff) - 2), (byte)((ram.PatternOffset >> 8) - 1) }, OrigData = new byte[] { 0xf5, 0xfe, 0xcf } });
+                    patches.Add(new Patch() { Offset = 0x0aaa, Data = new byte[] { 0xf5, (byte)((ram.PatternOffset & 0xff) - 0x11), (byte)((ram.PatternOffset >> 8) - 1) }, OrigData = new byte[] { 0xf5, 0xff, 0xcf } });
+                    patches.Add(new Patch() { Offset = 0x0aae, Data = new byte[] { 0xf5, (byte)((ram.PatternOffset & 0xff) - 0x12), (byte)((ram.PatternOffset >> 8) - 1) }, OrigData = new byte[] { 0xf5, 0xfe, 0xcf } });
                 }
             }
 
