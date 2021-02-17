@@ -61,6 +61,9 @@ namespace mITroid.NSPC
                 int targetInstrumentIndex = Convert.ToInt32(itInstrument.FileName.Substring(1));
                 VirtualInstrumentIndex = targetInstrumentIndex;
                 VirtualInstrumentType = 1;
+                InstrumentVolume = itInstrument.GlobalVolume;
+                SampleVolume = nSample.GlobalVolume;
+                DefaultVolume = nSample.DefaultVolume;
                 return;
             }
             else if (itInstrument.FileName.StartsWith("<"))
@@ -68,6 +71,9 @@ namespace mITroid.NSPC
                 int targetInstrumentIndex = Convert.ToInt32(itInstrument.FileName.Substring(1));
                 VirtualInstrumentIndex = targetInstrumentIndex;
                 VirtualInstrumentType = 2;
+                InstrumentVolume = itInstrument.GlobalVolume;
+                SampleVolume = nSample.GlobalVolume;
+                DefaultVolume = nSample.DefaultVolume;
                 return;
             }
 
@@ -117,7 +123,8 @@ namespace mITroid.NSPC
 
             if (nSample.C5Speed > 0)
             {
-                decimal div = 0x1064;
+                //decimal div = 0x1064;
+                decimal div = 4186;// / 2;
                 int mult = (int)Math.Floor(nSample.C5Speed / div);
                 int mod = (int)nSample.C5Speed % (int)div;
                 int sub = (int)Math.Round((255 * ((decimal)mod / div)));

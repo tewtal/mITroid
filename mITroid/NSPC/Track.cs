@@ -304,17 +304,17 @@ namespace mITroid.NSPC
                     {
                         noteEvent.Value = 0xC9;
                     }
-                    else if(row.Note == 255)
+                    else if (row.Note == 255)
                     {
                         noteEvent.Value = 0xFF;
                     }
-                    else if(row.Note > 119)
+                    else if (row.Note > 119)
                     {
                         noteEvent.Value = 0xC8;
                     }
                     else
                     {
-                        noteEvent.Value = row.Note + 104;
+                        noteEvent.Value = row.Note + (104);
                         if (noteEvent.Value > 199)
                             noteEvent.Value = 199;
 
@@ -1426,18 +1426,21 @@ namespace mITroid.NSPC
                                 real_semitones = (nEvent.Value - 128);
                             }
 
-                            preEffectList.Add((byte)Effect.PortamentoUp);
-                            preEffectList.Add((byte)((startRow - row) * module.CurrentSpeed));
-                            preEffectList.Add((byte)(module.CurrentSpeed * effectRows));
-                            if (firstEffect == (int)Effect.PortamentoUp)
+                            if (real_semitones != 0)
                             {
-                                preEffectList.Add((byte)(sbyte)(real_semitones));
+                                preEffectList.Add((byte)Effect.PortamentoUp);
+                                preEffectList.Add((byte)((startRow - row) * module.CurrentSpeed));
+                                preEffectList.Add((byte)((module.CurrentSpeed * effectRows) - module.CurrentSpeed));
+                                if (firstEffect == (int)Effect.PortamentoUp)
+                                {
+                                    preEffectList.Add((byte)(sbyte)(real_semitones));
+                                }
+                                else
+                                {
+                                    preEffectList.Add((byte)(sbyte)(-real_semitones));
+                                }
+                                portamento = 1;
                             }
-                            else
-                            {
-                                preEffectList.Add((byte)(sbyte)(-real_semitones));
-                            }
-                            portamento = 1;
                         }
 
 

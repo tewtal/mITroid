@@ -316,12 +316,13 @@ namespace mITroid.NSPC
             }
             sampleChunk.Data = sampleBytes.ToArray();
             sampleChunk.Length = sampleChunk.Data.Length;
-            chunks.Add(sampleChunk);
+            if(sampleChunk.Length > 0)
+                chunks.Add(sampleChunk);
 
             var sampleHeaderChunk = new Chunk
             {
                 Offset = Ram.SampleHeaderOffset + (Ram.SampleIndexOffset * 4),
-                Data = new byte[_samples.Count * 4],
+                Data = new byte[_samples.Where(x => x.VirtualSampleType == 0).Count() * 4],
                 Type = Chunk.ChunkType.SampleHeaders
             };
             using (MemoryStream ms = new MemoryStream(sampleHeaderChunk.Data))
@@ -337,12 +338,13 @@ namespace mITroid.NSPC
             }
 
             sampleHeaderChunk.Length = sampleHeaderChunk.Data.Length;
-            chunks.Add(sampleHeaderChunk);
+            if (sampleHeaderChunk.Length > 0)
+                chunks.Add(sampleHeaderChunk);
 
             var instrumentChunk = new Chunk
             {
                 Offset = Ram.InstrumentOffset + (Ram.InstrumentIndexOffset * 6),
-                Data = new byte[_instruments.Count * 6],
+                Data = new byte[_instruments.Where(x => x.VirtualInstrumentType == 0).Count() * 6],
                 Type = Chunk.ChunkType.InstrumentHeaders
             };
 
@@ -361,8 +363,8 @@ namespace mITroid.NSPC
             }
 
             instrumentChunk.Length = instrumentChunk.Data.Length;
-            chunks.Add(instrumentChunk);
-
+            if (instrumentChunk.Length > 0)
+                chunks.Add(instrumentChunk);
 
             /* Reserve space for sequence data and setup pattern*/
             int patternDataOffset = Ram.PatternOffset + (_sequences.Count * 2) + 8 + (SetupPattern ? (34 + (ChannelPanning.Any(x => x != 32) ? (7 * 8) : 0)) : -2);
