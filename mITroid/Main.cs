@@ -27,6 +27,7 @@ namespace mITroid
         private void button1_Click(object sender, EventArgs e)
         {
             var ofd = new OpenFileDialog();
+            ofd.Filter = "Impulse Tracker Files|*.it";
             if(ofd.ShowDialog() == DialogResult.OK)
             {
                 var br = new BinaryReader(ofd.OpenFile());
@@ -67,6 +68,15 @@ namespace mITroid
                 else
                 {
                     newAdsr = false;
+                }
+
+                bool optimizePatterns;
+                if(chkOptimizePatterns.Checked)
+                {
+                    optimizePatterns = true;
+                } else
+                {
+                    optimizePatterns = false;
                 }
 
                 RAMMap ram = new RAMMap();
@@ -131,7 +141,7 @@ namespace mITroid
                     }
                 }
 
-                _module = new Module(it, chkTreble.Checked, resampleFactor, engineSpeed, newAdsr, game, ram);
+                _module = new Module(it, chkTreble.Checked, resampleFactor, engineSpeed, newAdsr, optimizePatterns, game, ram);
                 _chunks = _module.GenerateData();
 
                 var patches = new List<Patch>();
@@ -192,7 +202,7 @@ namespace mITroid
                     lblMusicData.Text = _module.Patterns.Where(x => x.Pointer < _module.Ram.PatternEnd).Count().ToString() + " patterns - " + _chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset < _module.Ram.PatternEnd).First().Length + " bytes (" + ((int)((_chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset < _module.Ram.PatternEnd).First().Length / (double)musicDataSize) * 100)).ToString() + "%)";
                     if (_chunks.Any(x => x.Type == Chunk.ChunkType.Patterns  && x.Offset > _module.Ram.PatternEnd))
                     {
-                        lblExtraMusicData.Text = _module.Patterns.Where(x => x.Pointer > _module.Ram.PatternEnd).Count().ToString() + " extra patterns - " + _chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).First().Length + " bytes (" + ((int)((_chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).First().Length / (double)(0xFF8f - _chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).First().Length)) * 100)).ToString() + "%)";
+                        lblExtraMusicData.Text = _module.Patterns.Where(x => x.Pointer > _module.Ram.PatternEnd).Count().ToString() + " extra patterns - " + _chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).Sum(x => x.Length) + " bytes (" + ((int)((_chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).Sum(x => x.Length) / (double)(0xFF8f - _chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).First().Offset)) * 100)).ToString() + "%)";
                     }
                     else
                     {
@@ -208,7 +218,7 @@ namespace mITroid
                     lblMusicData.Text = _module.Patterns.Where(x => x.Pointer < _module.Ram.PatternEnd).Count().ToString() + " patterns - " + _chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset < _module.Ram.PatternEnd).First().Length + " bytes (" + ((int)((_chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset < _module.Ram.PatternEnd).First().Length / (double)musicDataSize) * 100)).ToString() + "%)";
                     if (_chunks.Any(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd))
                     {
-                        lblExtraMusicData.Text = _module.Patterns.Where(x => x.Pointer > _module.Ram.PatternEnd).Count().ToString() + " extra patterns - " + _chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).First().Length + " bytes (" + ((int)((_chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).First().Length / (double)(0xEFFF - _chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).First().Length)) * 100)).ToString() + "%)";
+                        lblExtraMusicData.Text = _module.Patterns.Where(x => x.Pointer > _module.Ram.PatternEnd).Count().ToString() + " extra patterns - " + _chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).Sum(x => x.Length) + " bytes (" + ((int)((_chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).Sum(x => x.Length) / (double)(0xEFFF - _chunks.Where(x => x.Type == Chunk.ChunkType.Patterns && x.Offset > _module.Ram.PatternEnd).First().Offset)) * 100)).ToString() + "%)";
                     }
                     else
                     {

@@ -166,11 +166,12 @@ namespace mITroid.NSPC
         public RAMMap Ram { get; set; }
         public bool Deduplicate { get; set; }
         public bool SetupPattern { get; set; }
+        public bool OptimizePatterns { get; set; }
 
         public Dictionary<int,int> SampleIndexMap { get; set; }
         public Dictionary<int,int> InstrumentIndexMap { get; set; }
 
-        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, decimal engineSpeed, bool newAdsr, Game game, RAMMap ram)
+        public Module(IT.Module itModule, bool enhanceTreble, decimal resampleFactor, decimal engineSpeed, bool newAdsr, bool optimizePatterns, Game game, RAMMap ram)
         {
             EngineSpeed = engineSpeed;
             Name = itModule.Name;
@@ -183,6 +184,7 @@ namespace mITroid.NSPC
             Ram = ram;
             Deduplicate = true;
             SetupPattern = true;
+            OptimizePatterns = optimizePatterns;
             ChannelVolume = new int[] { 64, 64, 64, 64, 64, 64, 64, 64 };
             ChannelPanning = new int[] { 32, 32, 32, 32, 32, 32, 32, 32 };
 
@@ -373,13 +375,45 @@ namespace mITroid.NSPC
             int chunkEnd = 0;
             curOffset = trackDataOffset;
 
+
+            // Generate all track data
+            foreach (var p in _patterns)
+            {
+                foreach (var t in p.Tracks)
+                {
+                    t.GenerateData(this);
+                }
+            }
+
+            // If pattern optimization is active, try to extract repeated pattern data to subroutines            
+            List<Subroutine> subRoutines = new List<Subroutine>();
+            int subRoutineOffset = sampleChunk.Offset + sampleChunk.Length;
+
+            if (OptimizePatterns)
+            {
+                var opt = new Optimizer(this);
+                subRoutines = opt.Optimize(curOffset, Ram.PatternEnd, subRoutineOffset);
+                
+                if (subRoutines.Count > 0)
+                {
+                    curOffset = subRoutines.Where(s => s.Offset < Ram.PatternEnd).Max(s => s.Offset + s.Length);
+
+                    var maxOffset = subRoutines.Max(s => s.Offset + s.Length);
+                    if (maxOffset > Ram.PatternEnd)
+                    {
+                        subRoutineOffset = maxOffset;
+                    }
+                }
+
+            }
+
             foreach (var p in _patterns)
             {
                 p.Pointer = curOffset;
                 //curOffset += 16;
                 foreach (var t in p.Tracks)
                 {
-                    t.GenerateData(this);
+                    //t.GenerateData(this);
                     if (t.Data.Count() > 0)
                     {
                         /* Check if this track is a duplicate of a previous track */
@@ -403,11 +437,11 @@ namespace mITroid.NSPC
                             }
                         }
 
-                        if ((curOffset + t.Data.Length) >= Ram.PatternEnd && curOffset < (sampleChunk.Offset + sampleChunk.Length))
+                        if ((curOffset + t.Data.Length) >= Ram.PatternEnd && curOffset < subRoutineOffset)
                         {
                             /* out of space, allocate more after samples if possible */
                             chunkEnd = curOffset;
-                            curOffset = sampleChunk.Offset + sampleChunk.Length;
+                            curOffset = subRoutineOffset;
                         }
 
                         t.Pointer = curOffset;
@@ -542,6 +576,9 @@ namespace mITroid.NSPC
                         bw.Write((byte)0x00);
                     }
 
+                    // Write subroutines in regular pattern space
+                    bw.Write(subRoutines.Where(s => s.Offset < Ram.PatternEnd).OrderBy(s => s.Offset).SelectMany(s => s.Data).ToArray());
+
                     foreach (var p in _patterns.Where(x => x.Pointer < Ram.PatternEnd))
                     {
                         //foreach(var t in p.Tracks)
@@ -557,8 +594,6 @@ namespace mITroid.NSPC
                             }
                         }
                     }
-
-                    bw.Write((byte)0);
                 }
             }
             patternChunk.Length = patternChunk.Data.Length;
@@ -569,7 +604,7 @@ namespace mITroid.NSPC
             {
                 var extraPatternChunk = new Chunk
                 {
-                    Offset = (sampleChunk.Offset + sampleChunk.Length),
+                    Offset = subRoutineOffset,
                     Type = Chunk.ChunkType.Patterns
                 };
 
@@ -592,8 +627,11 @@ namespace mITroid.NSPC
                 {
                     using (BinaryWriter bw = new BinaryWriter(ms))
                     {
+                        // Write subroutines in extended pattern space
+                        bw.Write(subRoutines.Where(s => s.Offset > Ram.PatternEnd).OrderBy(s => s.Offset).SelectMany(s => s.Data).ToArray());
+
                         //foreach (var p in _patterns.Where(x => x.Pointer >= extraPatternChunk.Offset).OrderBy(x => x.Pointer))
-                        foreach(var p in _patterns.Where(x => x.Tracks.Any(y => y.Pointer >= extraPatternChunk.Offset)).OrderBy(x => x.Pointer))
+                        foreach (var p in _patterns.Where(x => x.Tracks.Any(y => y.Pointer >= extraPatternChunk.Offset)).OrderBy(x => x.Pointer))
                         {
                             //foreach (var t in p.Tracks)
                             //{

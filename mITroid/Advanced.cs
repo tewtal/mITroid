@@ -166,7 +166,9 @@ namespace mITroid
 
         private void btnAdd_Click(object sender, EventArgs e)
         {
+            lstInputFiles.Items.Clear();
             var ofd = new OpenFileDialog();
+            ofd.Filter = "Impulse Tracker Files|*.it";
             if (ofd.ShowDialog() == DialogResult.OK)
             {
                 lstInputFiles.Items.Add(ofd.FileName);
@@ -236,7 +238,7 @@ namespace mITroid
             ram.PatternIndexOffset = Convert.ToInt32(txtMusicIndex.Text, 16);
             ram.SongIndex = Convert.ToInt32(txtSongIndex.Text, 16);
 
-            _module = new Module(it, chkEnhanceTreble.Checked, resampleFactor, engineSpeed, true, _game, ram);
+            _module = new Module(it, chkEnhanceTreble.Checked, resampleFactor, engineSpeed, true, chkOptimizePatterns.Checked, _game, ram);
             _module.Deduplicate = chkOptimizeTracks.Checked;
             _module.SetupPattern = chkSetupPattern.Checked;
 
@@ -411,6 +413,13 @@ namespace mITroid
         private void groupBox7_Enter(object sender, EventArgs e)
         {
 
+        }
+
+        private void btnLoadInfoFromRom_Click(object sender, EventArgs e)
+        {
+            var ofd = new OpenFileDialog();
+            ofd.Filter = "Super Nintendo ROM|*.sfc;*.smc";
+            ofd.ShowDialog();
         }
     }
 }
