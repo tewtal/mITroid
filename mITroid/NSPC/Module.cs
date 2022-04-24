@@ -388,6 +388,7 @@ namespace mITroid.NSPC
             // If pattern optimization is active, try to extract repeated pattern data to subroutines            
             List<Subroutine> subRoutines = new List<Subroutine>();
             int subRoutineOffset = sampleChunk.Offset + sampleChunk.Length;
+            int subRoutineLength = 0;
 
             if (OptimizePatterns)
             {
@@ -401,6 +402,7 @@ namespace mITroid.NSPC
                     var maxOffset = subRoutines.Max(s => s.Offset + s.Length);
                     if (maxOffset > Ram.PatternEnd)
                     {
+                        subRoutineLength = maxOffset - subRoutineOffset;
                         subRoutineOffset = maxOffset;
                     }
                 }
@@ -604,7 +606,7 @@ namespace mITroid.NSPC
             {
                 var extraPatternChunk = new Chunk
                 {
-                    Offset = subRoutineOffset,
+                    Offset = (subRoutineOffset - subRoutineLength),
                     Type = Chunk.ChunkType.Patterns
                 };
 
@@ -622,7 +624,7 @@ namespace mITroid.NSPC
                 //}
 
                 extraPatternChunk.Length = extraLength; 
-                extraPatternChunk.Data = new byte[extraPatternChunk.Length];
+                extraPatternChunk.Data = new byte[extraPatternChunk.Length + subRoutineLength];
                 using (MemoryStream ms = new MemoryStream(extraPatternChunk.Data))
                 {
                     using (BinaryWriter bw = new BinaryWriter(ms))

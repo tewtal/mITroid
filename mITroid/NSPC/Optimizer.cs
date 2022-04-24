@@ -222,6 +222,12 @@ namespace mITroid.NSPC
                 {
                     var best = _blocks.Where(b => b.Value.Count > 1 && b.Value.First().Instructions.Length > 2 && b.Value.First().Instructions.SelectMany(i => i.Data).Count() > 5).OrderByDescending(b => b.Value.Count * b.Value.Max(bb => bb.Instructions.Length)).First();
                     var data = best.Value.First().Instructions.SelectMany(i => i.Data).ToArray();
+                    
+                    if(offset < extendedPatternDataStart && (offset + data.Length + 1) >= patternDataEnd)
+                    {
+                        offset = extendedPatternDataStart;
+                    }
+
                     subRoutines.Add(new Subroutine
                         {
                             Offset = offset,
@@ -248,11 +254,6 @@ namespace mITroid.NSPC
                             break;
                         }
                         trackOffset += data.Length - 4;
-                    }
-                    
-                    if(offset < patternDataEnd && (offset + data.Length + 1) > patternDataEnd)
-                    {
-                        offset = extendedPatternDataStart;
                     }
                     
                     offset += data.Length + 1;
